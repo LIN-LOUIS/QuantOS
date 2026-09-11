@@ -1,6 +1,6 @@
 # QuantOS
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.en.md) | [简体中文](README.md)
 
 **时间点安全、证据驱动、可审计的金融情报智能体后端**
 
