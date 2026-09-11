@@ -1,6 +1,6 @@
 # QuantOS
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.en.md) | [简体中文](README.md)
 
 **Point-in-Time Safe Financial Intelligence Backend**
 
