@@ -1,0 +1,11 @@
+trade_date,data_source,candidate_count,successful_candidate_count,evidence_covered_candidates,attribution_ready_candidates,knowledge_ready_candidates,knowledge_empty_candidates,synthesis_success_candidates,report_publication_status,daily_report_id,daily_schema_version,post_close_success,pre_open_reuse_status,duration_ms
+2026-08-24,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,7de236b4655e430dd82ec50add87093450bc48235c2fa8931bfcd618f6b04d55,daily-intelligence-v2,True,NOT_APPLICABLE,69
+2026-08-25,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,84824208a0c462935d113cdfacf0c832476ed51a7b8a7a0d2a40e89b3149df0f,daily-intelligence-v2,True,PASS,65
+2026-08-26,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,f11010d628766d2c7a3d15f0610c22fc003fe31e369e073967302e51e0c150b4,daily-intelligence-v2,True,PASS,63
+2026-08-27,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,c3eaa5c2c87caac375fe75f56e30d75f5fe9acaf0db2f6b60437224e522e28a1,daily-intelligence-v2,True,PASS,61
+2026-08-28,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,e4d7d5882eaba21bd9aac9f19e7360daa084d769cb89501e1635e60cb344361c,daily-intelligence-v2,True,PASS,59
+2026-08-31,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,522bde54bc1aca3c90a7edc129393f71ebeacb44b3120fc2615852a0cae1863a,daily-intelligence-v2,True,PASS,60
+2026-09-01,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,311f6d9eddb1df7b044ce05506d687f8924d5f92a1db9b8ddc0a7e5ca6151e0f,daily-intelligence-v2,True,PASS,61
+2026-09-02,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,7983e1758ce6d7c205df5e46aedfed02ba57acdd089aef906ec2f2676c4e9c47,daily-intelligence-v2,True,PASS,63
+2026-09-03,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,5fd3797500053c8a2e4bf88992c868132dc497415cac3791df506095c9e17a17,daily-intelligence-v2,True,PASS,60
+2026-09-04,SYNTHETIC_FIXTURE,2,2,2,2,1,1,2,PASS,b1a96ac86385ffdaf9b2d298a8a6bde07133fef376d78c854386e9ece060b6c9,daily-intelligence-v2,True,PASS,61

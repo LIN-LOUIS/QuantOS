@@ -1,0 +1,11 @@
+[Unit]
+Description=Wake the QuantOS single-shot scheduler every five minutes
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+AccuracySec=1min
+Unit=quantos-scheduler.service
+
+[Install]
+WantedBy=timers.target

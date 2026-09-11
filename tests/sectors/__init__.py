@@ -1,0 +1,1 @@
+"""Sector domain tests."""

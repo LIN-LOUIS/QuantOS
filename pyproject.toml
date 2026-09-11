@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quantos"
+version = "0.1.0"
+description = "Deterministic, point-in-time-safe financial intelligence backend"
+requires-python = ">=3.10"
+dependencies = [
+  "duckdb>=1.1,<2",
+  "pytz>=2024.1",
+  "tushare>=1.4.29,<2",
+  "baostock>=0.9.3,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quantos"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

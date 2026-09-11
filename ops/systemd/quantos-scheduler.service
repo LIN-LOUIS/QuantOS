@@ -1,0 +1,9 @@
+[Unit]
+Description=QuantOS single-shot scheduler evaluation
+After=local-fs.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/quantos
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/quantos/scripts/run_scheduler_once.py --mode strict_live --calendar /var/lib/quantos/trading-calendar.json --runtime-db /var/lib/quantos/scheduler/runtime.sqlite3 --project-root /opt/quantos --no-llm
