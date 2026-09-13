@@ -101,23 +101,29 @@ python -m pip install -e ".[dev]"
 ## 快速开始
 
 ```bash
-git clone <PUBLIC_REPOSITORY_URL> QuantOS
+git clone https://github.com/LIN-LOUIS/QuantOS.git
 cd QuantOS
 python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-python -m pytest -q
-python scripts/evaluate_v1.py --help
-python scripts/evaluate_v1.py --output-dir /tmp/quantos-evaluation --trading-days 10
+quantos --version
+quantos doctor
+quantos demo
 ```
 
-Synthetic evaluation完全本地运行且不需要provider credential。真实市场产品命令
-需要事先准备好的canonical本地数据与配置；仅clone仓库不会生成真实市场日报。
+`quantos demo` 使用 `SYNTHETIC_FIXTURE`，属于 **NOT REAL-HISTORICAL
+PERFORMANCE** 的工程演示；它不需要API key，不访问真实LLM，也不访问真实
+market/news provider。真实市场日报仍需要provider/config、canonical本地制品，
+以及对应的Evidence/Knowledge准备；仅clone仓库不会生成真实A股日报。
 详见[快速开始](docs/quickstart.zh-CN.md)。
 
 ## CLI
 
 ```bash
+quantos doctor
+quantos demo
+quantos health --help
 python -m quantos --help
 python scripts/run_quantos.py --help
 python scripts/generate_daily_report.py --help

@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+import json
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -163,3 +164,74 @@ def test_cli_missing_tushare_token_fails_without_polluting_json_stdout(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "TUSHARE_TOKEN is not configured" in captured.err
+
+
+def test_top_level_help_exposes_only_real_user_commands_and_product_wording(capsys):
+    with pytest.raises(SystemExit) as info:
+        cli.main(["--help"])
+    assert info.value.code == 0
+    output = capsys.readouterr().out
+    assert "{health,doctor,demo}" in output
+    assert "collect market data and run pipeline health checks" in output
+    for internal_name in ("Phase 1A", "Phase 3C.2", "Phase 4F", "E2E.3"):
+        assert internal_name not in output
+
+
+def test_version_is_available_from_unified_cli(capsys):
+    with pytest.raises(SystemExit) as info:
+        cli.main(["--version"])
+    assert info.value.code == 0
+    assert capsys.readouterr().out == "quantos 0.1.0\n"
+
+
+def test_doctor_json_is_offline_read_only_and_needs_no_credentials(capsys):
+    assert cli.main(["doctor", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "PASS"
+    assert payload["offline"] is True
+    assert payload["read_only"] is True
+    assert payload["credential_required"] is False
+    assert all(check["status"] == "PASS" for check in payload["checks"])
+
+
+def test_demo_json_uses_audited_synthetic_evaluation(monkeypatch, capsys):
+    called = {}
+
+    class Result:
+        summary = {
+            "data_source": "SYNTHETIC_FIXTURE",
+            "provider_network_request_count": 0,
+            "real_deepseek_request_count": 0,
+            "embedding_provider_request_count": 0,
+            "pit_violation_count": 0,
+            "trading_days_evaluated": 2,
+            "candidate_count": 4,
+            "evaluation_id": "fixture-id",
+        }
+
+    def run(output_dir, *, trading_days, candidate_count):
+        called.update({
+            "output_dir": output_dir,
+            "trading_days": trading_days,
+            "candidate_count": candidate_count,
+        })
+        return Result()
+
+    monkeypatch.setattr("quantos.evaluation.run_synthetic_strict_evaluation", run)
+    assert cli.main(["demo", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert called["trading_days"] == called["candidate_count"] == 2
+    assert payload == {
+        "command": "demo",
+        "status": "PASS",
+        "data_source": "SYNTHETIC_FIXTURE",
+        "synthetic_disclaimer": "PRESENT",
+        "credential_required": False,
+        "real_provider_requests": 0,
+        "real_llm_requests": 0,
+        "embedding_requests": 0,
+        "pit_violations": 0,
+        "trading_days_evaluated": 2,
+        "candidate_count": 4,
+        "evaluation_id": "fixture-id",
+    }

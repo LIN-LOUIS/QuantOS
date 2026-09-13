@@ -44,7 +44,7 @@ def _public_metadata(**changes):
     value = {
         "schema_version": "quantos-public-export-v1",
         "project_version": "0.1.0",
-        "source_private_commit": "4d1fe2c8005ebb34e13cdbeb20eeb69a04331f2e",
+        "source_private_commit": "0a0b87cce459d8b5d5cb0a3a89a408fc08a025ec",
         "core_freeze_commit": "46038d95d384a9e4a8ad04d7ffbcecf25e25e20e",
         "core_freeze_tag": "v0.1.0-core",
         "distribution": "PUBLIC_BACKEND",

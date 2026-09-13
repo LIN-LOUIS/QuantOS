@@ -1,15 +1,21 @@
-"""Command-line entry points for QuantOS operational health checks."""
+"""Unified user-facing command-line entry points for QuantOS."""
 
 from __future__ import annotations
 
 import argparse
+from importlib.util import find_spec
 import json
 import logging
 import sys
+import tempfile
 from datetime import date, datetime, time
 from pathlib import Path
+from platform import python_version
 from typing import Sequence
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from quantos import __version__
 
 from quantos.collectors import (
     EastmoneyMarketCollector,
@@ -41,9 +47,19 @@ _EXIT_CODES = {
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
-    if args.command != "health":
+    if args.command is None:
         parser.print_help()
         return 2
+
+    if args.command == "doctor":
+        return _run_doctor(json_output=args.json_output)
+    if args.command == "demo":
+        return _run_demo(json_output=args.json_output)
+    return _run_health(args, parser)
+
+
+def _run_health(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Run the existing market-data health command without changing its contract."""
 
     try:
         start_date = date.fromisoformat(args.start_date)
@@ -112,6 +128,112 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _EXIT_CODES[report.status]
 
 
+def _run_doctor(*, json_output: bool) -> int:
+    """Check the installed local runtime without credentials, writes, or network."""
+    checks = [
+        {
+            "name": "python",
+            "status": "PASS" if sys.version_info >= (3, 10) else "FAIL",
+            "detail": python_version(),
+        },
+        {
+            "name": "package",
+            "status": "PASS",
+            "detail": f"quantos {__version__}",
+        },
+    ]
+    for module_name in ("duckdb", "pytz", "tushare", "baostock"):
+        checks.append({
+            "name": f"dependency:{module_name}",
+            "status": "PASS" if find_spec(module_name) is not None else "FAIL",
+            "detail": "available" if find_spec(module_name) is not None else "missing",
+        })
+    try:
+        ZoneInfo("Asia/Shanghai")
+        timezone_status = "PASS"
+        timezone_detail = "Asia/Shanghai available"
+    except ZoneInfoNotFoundError:
+        timezone_status = "FAIL"
+        timezone_detail = "Asia/Shanghai unavailable"
+    checks.append({
+        "name": "timezone",
+        "status": timezone_status,
+        "detail": timezone_detail,
+    })
+    status = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
+    payload = {
+        "command": "doctor",
+        "status": status,
+        "offline": True,
+        "read_only": True,
+        "credential_required": False,
+        "checks": checks,
+    }
+    if json_output:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(f"QuantOS doctor  {status}")
+        for item in checks:
+            print(f"{item['name']:<24} {item['status']:<4}  {item['detail']}")
+        print("Offline          YES")
+        print("Read only        YES")
+        print("Credential required NO")
+    return 0 if status == "PASS" else 1
+
+
+def _run_demo(*, json_output: bool) -> int:
+    """Run the audited deterministic synthetic evaluation in temporary storage."""
+    from quantos.evaluation import (
+        EvaluationDataSource,
+        run_synthetic_strict_evaluation,
+    )
+
+    with tempfile.TemporaryDirectory(prefix="quantos-demo-") as temporary:
+        result = run_synthetic_strict_evaluation(
+            Path(temporary) / "evaluation",
+            trading_days=2,
+            candidate_count=2,
+        )
+    summary = result.summary
+    payload = {
+        "command": "demo",
+        "status": "PASS",
+        "data_source": summary["data_source"],
+        "synthetic_disclaimer": "PRESENT",
+        "credential_required": False,
+        "real_provider_requests": summary["provider_network_request_count"],
+        "real_llm_requests": summary["real_deepseek_request_count"],
+        "embedding_requests": summary["embedding_provider_request_count"],
+        "pit_violations": summary["pit_violation_count"],
+        "trading_days_evaluated": summary["trading_days_evaluated"],
+        "candidate_count": summary["candidate_count"],
+        "evaluation_id": summary["evaluation_id"],
+    }
+    expected = {
+        "data_source": EvaluationDataSource.SYNTHETIC_FIXTURE.value,
+        "real_provider_requests": 0,
+        "real_llm_requests": 0,
+        "embedding_requests": 0,
+        "pit_violations": 0,
+    }
+    if any(payload[name] != value for name, value in expected.items()):
+        payload["status"] = "FAIL"
+    if json_output:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(f"QuantOS synthetic demo  {payload['status']}")
+        print("SYNTHETIC FIXTURE — NOT REAL-HISTORICAL PERFORMANCE")
+        print(f"Trading days evaluated  {payload['trading_days_evaluated']}")
+        print(f"Candidates              {payload['candidate_count']}")
+        print("Credential required     NO")
+        print(f"Real provider requests  {payload['real_provider_requests']}")
+        print(f"Real LLM requests       {payload['real_llm_requests']}")
+        print(f"Embedding requests      {payload['embedding_requests']}")
+        print(f"PIT violations          {payload['pit_violations']}")
+        print(f"Synthetic disclaimer    {payload['synthetic_disclaimer']}")
+    return 0 if payload["status"] == "PASS" else 1
+
+
 def _aware_datetime(value: str) -> datetime:
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None or parsed.utcoffset() is None:
@@ -129,8 +251,11 @@ def _build_market_provider(name: str) -> MarketDataProvider:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="quantos")
+    parser.add_argument("--version", action="version", version=f"quantos {__version__}")
     subparsers = parser.add_subparsers(dest="command")
-    health = subparsers.add_parser("health", help="run the Phase 1A health pipeline")
+    health = subparsers.add_parser(
+        "health", help="collect market data and run pipeline health checks"
+    )
     health.add_argument("--symbol", action="append", required=True)
     health.add_argument("--frequency", default="1d")
     health.add_argument(
@@ -144,4 +269,12 @@ def _parser() -> argparse.ArgumentParser:
     health.add_argument("--json", action="store_true", dest="json_output")
     health.add_argument("--save-report", action="store_true")
     health.add_argument("--report-dir")
+    doctor = subparsers.add_parser(
+        "doctor", help="check the local installation without network access"
+    )
+    doctor.add_argument("--json", action="store_true", dest="json_output")
+    demo = subparsers.add_parser(
+        "demo", help="run an offline demo using audited synthetic data"
+    )
+    demo.add_argument("--json", action="store_true", dest="json_output")
     return parser

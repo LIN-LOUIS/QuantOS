@@ -139,24 +139,30 @@ a release-install command.
 ## Quick start
 
 ```bash
-git clone <PUBLIC_REPOSITORY_URL> QuantOS
+git clone https://github.com/LIN-LOUIS/QuantOS.git
 cd QuantOS
 python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-python -m pytest -q
-python scripts/evaluate_v1.py --help
-python scripts/evaluate_v1.py --output-dir /tmp/quantos-evaluation --trading-days 10
+quantos --version
+quantos doctor
+quantos demo
 ```
 
-The synthetic evaluation is local and does not require provider credentials.
-Real market product commands require previously prepared canonical local data
-and configuration; cloning the repository alone does not create a real Daily
-Intelligence report. See [Quick start](docs/quickstart.md).
+`quantos demo` uses `SYNTHETIC_FIXTURE` and is **NOT REAL-HISTORICAL
+PERFORMANCE**. It needs no API key and makes no request to a real LLM or real
+market/news provider. Real market reports still require provider/configuration,
+canonical local artifacts, and the corresponding Evidence/Knowledge preparation;
+cloning the repository alone does not create a real A-share report. See
+[Quick start](docs/quickstart.md).
 
 ## CLI entry points
 
 ```bash
+quantos doctor
+quantos demo
+quantos health --help
 python -m quantos --help
 python scripts/run_quantos.py --help
 python scripts/generate_daily_report.py --help

@@ -9,7 +9,7 @@ PUBLIC_EXPORT_METADATA.json
 PUBLIC_LICENSE_DECISION.md
 PUBLIC_REPOSITORY_METADATA.md
 README.md
-README.zh-CN.md
+README.en.md
 SECURITY.md
 docs/architecture.md
 docs/architecture.zh-CN.md

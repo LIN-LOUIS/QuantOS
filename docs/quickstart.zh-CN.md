@@ -11,7 +11,7 @@
 ## 从源码安装
 
 ```bash
-git clone <PUBLIC_REPOSITORY_URL> QuantOS
+git clone https://github.com/LIN-LOUIS/QuantOS.git
 cd QuantOS
 python -m venv .venv
 source .venv/bin/activate
@@ -20,6 +20,18 @@ python -m pip install -e ".[dev]"
 ```
 
 QuantOS当前未发布到PyPI。
+
+## 首次运行
+
+```bash
+quantos --version
+quantos doctor
+quantos demo
+```
+
+`quantos doctor` 是离线、只读的安装检查。`quantos demo` 使用
+`SYNTHETIC_FIXTURE`，属于 **NOT REAL-HISTORICAL PERFORMANCE**；它不需要
+API key，也不访问真实LLM或真实market/news provider。
 
 ## 验证后端
 
@@ -47,11 +59,13 @@ REAL_HISTORICAL或投资表现测试。
 ## 查看运行CLI
 
 ```bash
+quantos health --help
 python -m quantos --help
 python scripts/run_quantos.py --help
 python scripts/generate_daily_report.py --help
 python scripts/generate_time_slice_report.py --help
 python scripts/run_scheduler_once.py --help
+python scripts/evaluate_v1.py --help
 ```
 
 时间参数必须带时区offset，例如：
@@ -69,7 +83,9 @@ python scripts/run_quantos.py \
 该命令消费已经存在的canonical本地制品。若制品缺失、过期、损坏或语义不兼容，
 系统会以结构化readiness/failure信息失败关闭；它不会下载或伪造真实市场日报。
 
-Daily生成同样依赖已准备的本地市场与Evidence制品：
+真实市场日报需要provider/config、canonical本地制品以及对应的Evidence/Knowledge
+准备；仅clone仓库不会生成真实A股日报。Daily生成同样依赖已准备的本地市场与
+Evidence制品：
 
 ```bash
 python scripts/generate_daily_report.py --help

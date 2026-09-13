@@ -11,7 +11,7 @@
 ## Install from source
 
 ```bash
-git clone <PUBLIC_REPOSITORY_URL> QuantOS
+git clone https://github.com/LIN-LOUIS/QuantOS.git
 cd QuantOS
 python -m venv .venv
 source .venv/bin/activate
@@ -20,6 +20,18 @@ python -m pip install -e ".[dev]"
 ```
 
 QuantOS is not currently published on PyPI.
+
+## First run
+
+```bash
+quantos --version
+quantos doctor
+quantos demo
+```
+
+`quantos doctor` is an offline, read-only installation check. `quantos demo`
+uses `SYNTHETIC_FIXTURE` and is **NOT REAL-HISTORICAL PERFORMANCE**. The demo
+needs no API key and contacts no real LLM or market/news provider.
 
 ## Verify the backend
 
@@ -48,11 +60,13 @@ engineering validation, not a real-historical or investment-performance test.
 ## Inspect operational CLIs
 
 ```bash
+quantos health --help
 python -m quantos --help
 python scripts/run_quantos.py --help
 python scripts/generate_daily_report.py --help
 python scripts/generate_time_slice_report.py --help
 python scripts/run_scheduler_once.py --help
+python scripts/evaluate_v1.py --help
 ```
 
 All timestamp arguments must include a timezone offset. For example:
@@ -72,7 +86,10 @@ fail closed with structured readiness/failure information when those artifacts
 are absent, stale, corrupt, or incompatible. It does not download or fabricate
 a real market product.
 
-Daily generation likewise requires prepared local market/evidence artifacts:
+Real market reports require provider/configuration, canonical local artifacts,
+and corresponding Evidence/Knowledge preparation. Cloning the repository alone
+does not generate a real A-share report. Daily generation requires prepared
+local market/evidence artifacts:
 
 ```bash
 python scripts/generate_daily_report.py --help

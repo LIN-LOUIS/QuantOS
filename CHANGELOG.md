@@ -8,6 +8,13 @@ No public release or tag has been created.
 
 ### Included
 
+#### User Command Layer V1
+
+- Added installed `quantos` console entry point.
+- Added offline read-only `quantos doctor`.
+- Added provider-free deterministic `quantos demo`.
+- Preserved existing health and advanced backend CLIs.
+
 - Deterministic, PIT-aware market-data and candidate foundations
 - Evidence calibration and attribution eligibility
 - Immutable local Knowledge documents, deterministic chunking, and lexical retrieval
