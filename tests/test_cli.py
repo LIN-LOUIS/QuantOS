@@ -171,7 +171,7 @@ def test_top_level_help_exposes_only_real_user_commands_and_product_wording(caps
         cli.main(["--help"])
     assert info.value.code == 0
     output = capsys.readouterr().out
-    assert "{health,doctor,demo}" in output
+    assert "{doctor,demo,health,status,report,scheduler}" in output
     assert "collect market data and run pipeline health checks" in output
     for internal_name in ("Phase 1A", "Phase 3C.2", "Phase 4F", "E2E.3"):
         assert internal_name not in output

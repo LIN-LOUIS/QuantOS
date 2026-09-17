@@ -27,11 +27,31 @@ QuantOS is not currently published on PyPI.
 quantos --version
 quantos doctor
 quantos demo
+quantos status
 ```
 
 `quantos doctor` is an offline, read-only installation check. `quantos demo`
 uses `SYNTHETIC_FIXTURE` and is **NOT REAL-HISTORICAL PERFORMANCE**. The demo
 needs no API key and contacts no real LLM or market/news provider.
+
+
+## Real workflow commands
+
+```bash
+quantos report --help
+quantos report daily --help
+quantos report pre-open --help
+quantos report post-close --help
+quantos scheduler once --help
+```
+
+`quantos doctor` checks whether the environment can run QuantOS. `quantos status`
+inspects which real local data and products exist in the workspace, offline and
+read-only. Doctor PASS does not imply Daily READY. The real report commands
+need prepared local canonical market data, Evidence, Knowledge/configuration,
+and the corresponding provider/configuration. If required artifacts are absent,
+they fail closed with a structured reason: no automatic download, demo switch,
+or synthetic report.
 
 ## Verify the backend
 

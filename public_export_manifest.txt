@@ -51,6 +51,10 @@ src/quantos/collectors/news.py
 src/quantos/collectors/symbols.py
 src/quantos/collectors/tushare.py
 src/quantos/collectors/web_search.py
+src/quantos/commands/__init__.py
+src/quantos/commands/report.py
+src/quantos/commands/scheduler.py
+src/quantos/commands/status.py
 src/quantos/config.py
 src/quantos/discovery.py
 src/quantos/evaluation.py
@@ -197,4 +201,5 @@ tests/test_synthesis_runtime.py
 tests/test_time_slice_storage.py
 tests/test_time_slices.py
 tests/test_triage.py
+tests/test_user_commands.py
 tests/test_v1_system_audit.py

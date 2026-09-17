@@ -148,6 +148,7 @@ python -m pip install -e ".[dev]"
 quantos --version
 quantos doctor
 quantos demo
+quantos status
 ```
 
 `quantos demo` uses `SYNTHETIC_FIXTURE` and is **NOT REAL-HISTORICAL
@@ -157,11 +158,31 @@ canonical local artifacts, and the corresponding Evidence/Knowledge preparation;
 cloning the repository alone does not create a real A-share report. See
 [Quick start](docs/quickstart.md).
 
+
+## Real workflow commands
+
+```bash
+quantos report --help
+quantos report daily --help
+quantos report pre-open --help
+quantos report post-close --help
+quantos scheduler once --help
+```
+
+`quantos doctor` checks whether the environment can run QuantOS. `quantos status`
+inspects which real local data and products exist in the workspace, offline and
+read-only. Doctor PASS does not imply Daily READY. The real report commands
+need prepared local canonical market data, Evidence, Knowledge/configuration,
+and the corresponding provider/configuration. If required artifacts are absent,
+they fail closed with a structured reason: no automatic download, demo switch,
+or synthetic report.
+
 ## CLI entry points
 
 ```bash
 quantos doctor
 quantos demo
+quantos status
 quantos health --help
 python -m quantos --help
 python scripts/run_quantos.py --help

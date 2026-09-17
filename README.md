@@ -110,6 +110,7 @@ python -m pip install -e ".[dev]"
 quantos --version
 quantos doctor
 quantos demo
+quantos status
 ```
 
 `quantos demo` 使用 `SYNTHETIC_FIXTURE`，属于 **NOT REAL-HISTORICAL
@@ -118,11 +119,29 @@ market/news provider。真实市场日报仍需要provider/config、canonical本
 以及对应的Evidence/Knowledge准备；仅clone仓库不会生成真实A股日报。
 详见[快速开始](docs/quickstart.zh-CN.md)。
 
+
+## 真实工作流命令
+
+```bash
+quantos report --help
+quantos report daily --help
+quantos report pre-open --help
+quantos report post-close --help
+quantos scheduler once --help
+```
+
+`quantos doctor` 检查当前环境能否运行 QuantOS；`quantos status` 离线、只读地
+检查当前 workspace 有哪些真实数据和产品可用。Doctor PASS 不代表 Daily READY。
+真实 report 命令需要已准备的本地 canonical market data、Evidence、
+Knowledge/config 以及相应 provider/config。缺少所需制品时会返回结构化原因并
+失败关闭；不会自动下载、切换 demo 或生成 synthetic report。
+
 ## CLI
 
 ```bash
 quantos doctor
 quantos demo
+quantos status
 quantos health --help
 python -m quantos --help
 python scripts/run_quantos.py --help

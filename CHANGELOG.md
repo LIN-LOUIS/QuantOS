@@ -8,6 +8,16 @@ No public release or tag has been created.
 
 ### Included
 
+#### Real-World Command Wrappers V1
+
+- Added `quantos status`.
+- Added unified `quantos report daily`.
+- Added `quantos report pre-open`.
+- Added `quantos report post-close`.
+- Added `quantos scheduler once`.
+- Existing script entry points remain supported.
+- Real report commands fail closed when required local artifacts are unavailable.
+
 #### User Command Layer V1
 
 - Added installed `quantos` console entry point.

@@ -16,6 +16,10 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from quantos import __version__
+from quantos.commands import CommandFailure, render_json
+from quantos.commands import report as report_command
+from quantos.commands import scheduler as scheduler_command
+from quantos.commands.status import inspect_status, render_status
 
 from quantos.collectors import (
     EastmoneyMarketCollector,
@@ -55,6 +59,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_doctor(json_output=args.json_output)
     if args.command == "demo":
         return _run_demo(json_output=args.json_output)
+    if args.command == "status":
+        return _run_status(args)
+    if args.command == "report":
+        return _run_report(args, parser)
+    if args.command == "scheduler":
+        return _run_scheduler(args, parser)
     return _run_health(args, parser)
 
 
@@ -234,6 +244,72 @@ def _run_demo(*, json_output: bool) -> int:
     return 0 if payload["status"] == "PASS" else 1
 
 
+def _run_status(args: argparse.Namespace) -> int:
+    result = inspect_status(args.project_root)
+    print(render_json(result) if args.json_output else render_status(result))
+    return 0
+
+
+def _run_report(
+    args: argparse.Namespace, parser: argparse.ArgumentParser,
+) -> int:
+    if args.report_command is None:
+        args._command_parser.print_help()
+        return 2
+    settings = Settings.from_project_root(args.project_root)
+    try:
+        if args.report_command == "daily":
+            top_n = report_command.validate_common(args, parser)
+            result = report_command.execute_daily(
+                report_command.DailyOptions(
+                    args.trade_date, args.as_of_time, args.mode,
+                    top_n, args.no_llm,
+                ),
+                settings=settings,
+            )
+            rendered = report_command.render_daily(result)
+        else:
+            run_type = (
+                report_command.RunType.PRE_OPEN
+                if args.report_command == "pre-open"
+                else report_command.RunType.POST_CLOSE
+            )
+            top_n = report_command.validate_time_slice(args, parser, run_type)
+            result = report_command.execute_time_slice(
+                report_command.TimeSliceOptions(
+                    args.trade_date, args.as_of_time, run_type, args.mode,
+                    top_n, args.no_llm, args.plan_only,
+                ),
+                settings=settings,
+            )
+            rendered = report_command.render_time_slice(result)
+    except CommandFailure as error:
+        failure = error.record()
+        print(render_json(failure) if args.json_output else (
+            f"Command failed     {failure['error_code']}\n"
+            f"Remediation        {failure['remediation']}"
+        ))
+        return error.exit_code
+    print(render_json(result) if args.json_output else rendered)
+    return 0 if result["status"] == "PASS" else 1
+
+
+def _run_scheduler(
+    args: argparse.Namespace, parser: argparse.ArgumentParser,
+) -> int:
+    if args.scheduler_command is None:
+        args._command_parser.print_help()
+        return 2
+    try:
+        top_n = scheduler_command.validate(args, parser)
+        exit_code, result = scheduler_command.execute(args, top_n=top_n)
+    except CommandFailure as error:
+        print(render_json(error.record()), file=sys.stderr)
+        return error.exit_code
+    print(render_json(result))
+    return exit_code
+
+
 def _aware_datetime(value: str) -> datetime:
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None or parsed.utcoffset() is None:
@@ -253,6 +329,14 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="quantos")
     parser.add_argument("--version", action="version", version=f"quantos {__version__}")
     subparsers = parser.add_subparsers(dest="command")
+    doctor = subparsers.add_parser(
+        "doctor", help="check the local installation without network access"
+    )
+    doctor.add_argument("--json", action="store_true", dest="json_output")
+    demo = subparsers.add_parser(
+        "demo", help="run an offline demo using audited synthetic data"
+    )
+    demo.add_argument("--json", action="store_true", dest="json_output")
     health = subparsers.add_parser(
         "health", help="collect market data and run pipeline health checks"
     )
@@ -269,12 +353,35 @@ def _parser() -> argparse.ArgumentParser:
     health.add_argument("--json", action="store_true", dest="json_output")
     health.add_argument("--save-report", action="store_true")
     health.add_argument("--report-dir")
-    doctor = subparsers.add_parser(
-        "doctor", help="check the local installation without network access"
+    status = subparsers.add_parser(
+        "status", help="inspect local data and product readiness"
     )
-    doctor.add_argument("--json", action="store_true", dest="json_output")
-    demo = subparsers.add_parser(
-        "demo", help="run an offline demo using audited synthetic data"
+    status.add_argument("--project-root", type=Path, default=Path.cwd())
+    status.add_argument("--json", action="store_true", dest="json_output")
+
+    report = subparsers.add_parser(
+        "report", help="generate Daily or time-sliced local reports"
     )
-    demo.add_argument("--json", action="store_true", dest="json_output")
+    report.set_defaults(_command_parser=report)
+    report_subparsers = report.add_subparsers(dest="report_command")
+    daily = report_subparsers.add_parser("daily", help="generate Daily Intelligence")
+    report_command.add_daily_arguments(daily)
+    pre_open = report_subparsers.add_parser(
+        "pre-open", help="generate a PRE_OPEN TimeSlice"
+    )
+    report_command.add_time_slice_arguments(pre_open)
+    post_close = report_subparsers.add_parser(
+        "post-close", help="generate a POST_CLOSE TimeSlice"
+    )
+    report_command.add_time_slice_arguments(post_close)
+
+    scheduler = subparsers.add_parser(
+        "scheduler", help="run local scheduler operations"
+    )
+    scheduler.set_defaults(_command_parser=scheduler)
+    scheduler_subparsers = scheduler.add_subparsers(dest="scheduler_command")
+    once = scheduler_subparsers.add_parser(
+        "once", help="evaluate or execute one scheduler tick"
+    )
+    scheduler_command.add_arguments(once)
     return parser

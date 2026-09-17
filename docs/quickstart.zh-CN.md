@@ -27,11 +27,29 @@ QuantOS当前未发布到PyPI。
 quantos --version
 quantos doctor
 quantos demo
+quantos status
 ```
 
 `quantos doctor` 是离线、只读的安装检查。`quantos demo` 使用
 `SYNTHETIC_FIXTURE`，属于 **NOT REAL-HISTORICAL PERFORMANCE**；它不需要
 API key，也不访问真实LLM或真实market/news provider。
+
+
+## 真实工作流命令
+
+```bash
+quantos report --help
+quantos report daily --help
+quantos report pre-open --help
+quantos report post-close --help
+quantos scheduler once --help
+```
+
+`quantos doctor` 检查当前环境能否运行 QuantOS；`quantos status` 离线、只读地
+检查当前 workspace 有哪些真实数据和产品可用。Doctor PASS 不代表 Daily READY。
+真实 report 命令需要已准备的本地 canonical market data、Evidence、
+Knowledge/config 以及相应 provider/config。缺少所需制品时会返回结构化原因并
+失败关闭；不会自动下载、切换 demo 或生成 synthetic report。
 
 ## 验证后端
 
