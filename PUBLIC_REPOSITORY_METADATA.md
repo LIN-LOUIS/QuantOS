@@ -1,9 +1,10 @@
-# Public repository metadata proposal
+# Public repository metadata
 
 - Repository name: `QuantOS`
-- Description: `PIT-safe financial intelligence backend | 时间点安全、证据驱动、可审计的金融智能体后端`
-- Long description: `Deterministic, point-in-time-safe financial intelligence backend with evidence-grounded attribution, auditable knowledge retrieval and guarded LLM synthesis.`
+- Description: `Auditable Financial Research Workspace | PIT-safe, evidence-grounded, local-first`
+- Long description: `A local-first financial research workspace with grounded Ask, bounded analytics, provenance, trace inspection, availability semantics, and PIT-safe replay.`
 - Suggested topics: `financial-ai`, `financial-agent`, `llm`, `rag`, `point-in-time`, `financial-intelligence`, `evidence-grounded`, `quantitative-finance`, `python`, `ai-agent`
-- Suggested first formal public release tag: `v0.1.0`
+- Current public release tag: `v0.3.0`
 
-No remote repository, tag, or release is created by this export.
+The public repository preserves its independent history. Private development
+Git metadata and ancestry are never imported into this repository.

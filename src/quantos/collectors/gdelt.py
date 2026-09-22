@@ -11,7 +11,11 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
-from quantos.collectors.base import ProviderPayloadError, ProviderTransportError
+from quantos.collectors.base import (
+    ProviderPayloadError,
+    ProviderRateLimitError,
+    ProviderTransportError,
+)
 from quantos.config import MARKET_TIMEZONE
 from quantos.schemas import NewsRecord
 from quantos.schemas._validation import require_aware
@@ -69,7 +73,7 @@ class GdeltNewsProvider:
         }
         try:
             payload = self._transport(GDELT_DOC_URL, parameters, self._timeout)
-        except ProviderTransportError:
+        except (ProviderRateLimitError, ProviderTransportError):
             raise
         except Exception as exc:
             raise ProviderTransportError("GDELT DOC request failed") from exc
@@ -114,6 +118,10 @@ def _public_json_get(url: str, parameters: Mapping[str, str], timeout: float) ->
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             body = response.read()
+    except urllib.error.HTTPError as exc:
+        if exc.code == 429:
+            raise ProviderRateLimitError("GDELT rate limit reached") from None
+        raise ProviderTransportError("GDELT DOC request failed") from exc
     except (OSError, urllib.error.URLError) as exc:
         raise ProviderTransportError("GDELT DOC request failed") from exc
     try:

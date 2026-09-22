@@ -37,3 +37,11 @@ No public release or tag has been created.
 
 This candidate is not a production-ready trading platform and does not include
 real-historical performance validation, order execution, a public HTTP API, or UI.
+# v0.3.0
+
+- Added the local QuantOS Research Workspace and one-command offline Demo Mode.
+- Added grounded Ask with structured trace inspection.
+- Added bounded semantic analytics with charts, tables, and provenance.
+- Added explicit availability semantics and dual historical replay semantics.
+- Added deterministic release packaging, startup health checks, and safe local
+  port fallback.

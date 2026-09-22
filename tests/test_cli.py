@@ -171,17 +171,60 @@ def test_top_level_help_exposes_only_real_user_commands_and_product_wording(caps
         cli.main(["--help"])
     assert info.value.code == 0
     output = capsys.readouterr().out
-    assert "{doctor,demo,health,status,report,scheduler}" in output
+    assert "{doctor,demo,health,status,serve,start,data,replay,report,scheduler,ask}" in output
     assert "collect market data and run pipeline health checks" in output
     for internal_name in ("Phase 1A", "Phase 3C.2", "Phase 4F", "E2E.3"):
         assert internal_name not in output
+
+
+def test_start_help_exposes_product_options_and_local_default(capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["start", "--help"])
+
+    assert stopped.value.code == 0
+    output = capsys.readouterr().out
+    assert "--no-browser" in output
+    assert "--demo" in output
+    assert "--project-root" in output
+    assert "--host" in output
+    assert "--port" in output
+
+
+def test_demo_start_preserves_release_commit_before_switching_workspace(
+    tmp_path, monkeypatch,
+):
+    from quantos.config import Settings
+
+    workspace = tmp_path / "web" / "dist"
+    (workspace / "assets").mkdir(parents=True)
+    (workspace / "index.html").write_text("<main>QuantOS</main>", encoding="utf-8")
+    (tmp_path / "release-manifest.json").write_text(
+        '{"git_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}',
+        encoding="utf-8",
+    )
+    received = {}
+    monkeypatch.setattr(
+        "quantos.product.prepare_demo_workspace",
+        lambda _root: Settings.from_project_root(tmp_path / "temporary-demo"),
+    )
+    monkeypatch.setattr(
+        "quantos.product.launch_product",
+        lambda **kwargs: received.update(kwargs) or 0,
+    )
+
+    result = cli.main([
+        "start", "--project-root", str(tmp_path), "--demo", "--no-browser",
+    ])
+
+    assert result == 0
+    assert received["build_commit"] == "a" * 40
 
 
 def test_version_is_available_from_unified_cli(capsys):
     with pytest.raises(SystemExit) as info:
         cli.main(["--version"])
     assert info.value.code == 0
-    assert capsys.readouterr().out == "quantos 0.1.0\n"
+    assert capsys.readouterr().out == "quantos 0.3.0\n"
 
 
 def test_doctor_json_is_offline_read_only_and_needs_no_credentials(capsys):
@@ -191,7 +234,32 @@ def test_doctor_json_is_offline_read_only_and_needs_no_credentials(capsys):
     assert payload["offline"] is True
     assert payload["read_only"] is True
     assert payload["credential_required"] is False
+    checks = {item["name"]: item for item in payload["checks"]}
+    assert checks["workspace_assets"]["status"] == "PASS"
+    assert checks["demo_mode"]["status"] == "PASS"
+    assert checks["port_strategy"]["status"] == "PASS"
     assert all(check["status"] == "PASS" for check in payload["checks"])
+
+
+def test_doctor_uses_workspace_assets_from_explicit_project_root(
+    tmp_path, monkeypatch, capsys,
+):
+    project_root = tmp_path / "release"
+    assets = project_root / "web" / "dist" / "assets"
+    assets.mkdir(parents=True)
+    (assets.parent / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    monkeypatch.setattr(cli, "__file__", str(tmp_path / "installed" / "quantos" / "cli.py"))
+
+    assert cli.main([
+        "doctor", "--project-root", str(project_root), "--json",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    checks = {item["name"]: item for item in payload["checks"]}
+    assert checks["workspace_assets"] == {
+        "name": "workspace_assets",
+        "status": "PASS",
+        "detail": "built assets: dist",
+    }
 
 
 def test_demo_json_uses_audited_synthetic_evaluation(monkeypatch, capsys):

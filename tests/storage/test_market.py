@@ -11,7 +11,7 @@ from quantos.anomalies import detect_stock_anomaly
 from quantos.collectors import RawMarketRecord
 from quantos.config import Settings
 from quantos.schemas import MarketBar
-from quantos.storage import MarketDataRepository
+from quantos.storage import MarketDataRepository, StorageError
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 
@@ -112,6 +112,20 @@ def test_write_is_idempotent_by_source_record_identity(
     assert repository.write_bars([bar, bar]) == 1
     assert repository.write_bars([bar]) == 0
     assert len(repository.read_by_date(date(2026, 8, 26), as_of_time=bar.available_at)) == 1
+
+
+def test_read_only_repository_queries_parquet_and_rejects_writes(tmp_path) -> None:
+    settings = Settings.from_project_root(tmp_path)
+    writable = MarketDataRepository(settings)
+    bar = make_bar()
+    writable.write_bars([bar])
+    read_only = MarketDataRepository(settings, read_only=True)
+
+    assert read_only.read_by_symbol(
+        bar.symbol, as_of_time=bar.available_at,
+    ) == [bar]
+    with pytest.raises(StorageError, match="read-only"):
+        read_only.write_bars([bar])
 
 
 def test_read_by_date_enforces_point_in_time(repository: MarketDataRepository) -> None:

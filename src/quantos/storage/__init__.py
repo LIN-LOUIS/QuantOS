@@ -1,6 +1,12 @@
 """Local append-only storage and Point-in-Time queries."""
 
 from .time_slice import TimeSliceRepository
+from .ask_trace import AskTraceRepository, AskTraceStorageError
+from .security_master import (
+    SecurityMasterRepository, SecurityMasterStorageError,
+    SecurityMasterUnavailableError, SecuritySnapshotWriteResult,
+)
+from .bootstrap import BootstrapManifestRepository, ProviderHealthRepository
 
 from .run import RunRepository
 
@@ -30,6 +36,14 @@ from .report import DailyReportRepository
 
 __all__ = [
     "TimeSliceRepository",
+    "AskTraceRepository",
+    "AskTraceStorageError",
+    "SecurityMasterRepository",
+    "SecurityMasterStorageError",
+    "SecurityMasterUnavailableError",
+    "SecuritySnapshotWriteResult",
+    "BootstrapManifestRepository",
+    "ProviderHealthRepository",
     "RunRepository",
     "SchedulerRuntimeRepository",
     "KnowledgeCollisionError",

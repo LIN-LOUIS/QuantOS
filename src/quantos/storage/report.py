@@ -14,11 +14,15 @@ from .market import StorageError
 
 
 class DailyReportRepository:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, *, read_only: bool = False) -> None:
         self.settings = settings
-        self.settings.ensure_directories()
+        self.read_only = read_only
+        if not read_only:
+            self.settings.ensure_directories()
 
     def write(self, report: DailyIntelligenceReport) -> tuple[Path, Path]:
+        if self.read_only:
+            raise StorageError("daily report repository is read-only")
         from quantos.reporting import (
             canonical_json_bytes, render_daily_report, report_from_dict, report_to_dict,
             validate_daily_report_identity,

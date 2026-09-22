@@ -4,14 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantos"
-version = "0.1.0"
-description = "Deterministic, point-in-time-safe financial intelligence backend"
+version = "0.3.0"
+description = "Point-in-Time-safe local market data foundation for QuantOS"
 requires-python = ">=3.10"
 dependencies = [
   "duckdb>=1.1,<2",
   "pytz>=2024.1",
   "tushare>=1.4.29,<2",
   "baostock>=0.9.3,<1",
+  "fastapi>=0.141,<1",
+  "pydantic>=2.9,<3",
+  "uvicorn>=0.53,<1",
 ]
 
 [project.scripts]
@@ -19,6 +22,7 @@ quantos = "quantos.cli:main"
 
 [project.optional-dependencies]
 dev = [
+  "httpx2>=2.13,<3",
   "pytest>=8,<10",
 ]
 

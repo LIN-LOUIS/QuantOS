@@ -18,7 +18,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from quantos import __version__
 from quantos.commands import CommandFailure, render_json
 from quantos.commands import report as report_command
+from quantos.commands import ask as ask_command
 from quantos.commands import scheduler as scheduler_command
+from quantos.commands import data as data_command
+from quantos.commands import replay as replay_command
 from quantos.commands.status import inspect_status, render_status
 
 from quantos.collectors import (
@@ -39,6 +42,10 @@ from quantos.observability.reporting import (
 from quantos.observability.runner import HealthPipelineRunner
 from quantos.schemas import JobContext, JobType
 from quantos.storage import MarketDataRepository
+from quantos.data import ProviderRegistry
+from quantos.storage import (
+    BootstrapManifestRepository, SecurityMasterRepository, StorageError,
+)
 
 
 _EXIT_CODES = {
@@ -56,7 +63,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     if args.command == "doctor":
-        return _run_doctor(json_output=args.json_output)
+        return _run_doctor(json_output=args.json_output, project_root=args.project_root)
     if args.command == "demo":
         return _run_demo(json_output=args.json_output)
     if args.command == "status":
@@ -65,6 +72,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_report(args, parser)
     if args.command == "scheduler":
         return _run_scheduler(args, parser)
+    if args.command == "ask":
+        return _run_ask(args)
+    if args.command == "data":
+        return _run_data(args)
+    if args.command == "replay":
+        return _run_replay(args)
+    if args.command == "serve":
+        return _run_serve(args)
+    if args.command == "start":
+        return _run_start(args)
     return _run_health(args, parser)
 
 
@@ -138,8 +155,11 @@ def _run_health(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
     return _EXIT_CODES[report.status]
 
 
-def _run_doctor(*, json_output: bool) -> int:
+def _run_doctor(*, json_output: bool, project_root: Path | str = ".") -> int:
     """Check the installed local runtime without credentials, writes, or network."""
+    from quantos.product import (
+        ProductStartError, resolve_workspace_assets, select_local_port,
+    )
     checks = [
         {
             "name": "python",
@@ -170,7 +190,42 @@ def _run_doctor(*, json_output: bool) -> int:
         "status": timezone_status,
         "detail": timezone_detail,
     })
+    try:
+        try:
+            assets = resolve_workspace_assets(Path(project_root))
+        except ProductStartError:
+            assets = resolve_workspace_assets(Path(__file__).resolve().parents[2])
+        workspace_status, workspace_detail = "PASS", f"built assets: {assets.name}"
+    except ProductStartError:
+        workspace_status, workspace_detail = "FAIL", "run: cd web && npm ci && npm run build"
+    checks.append({
+        "name": "workspace_assets", "status": workspace_status,
+        "detail": workspace_detail,
+    })
+    checks.append({
+        "name": "demo_mode", "status": "PASS",
+        "detail": "offline deterministic fixture available",
+    })
+    try:
+        selected_port = select_local_port("127.0.0.1", 8000, explicit=False)
+        port_detail = (
+            "127.0.0.1:8000 available" if selected_port == 8000
+            else f"8000 occupied; automatic fallback available ({selected_port})"
+        )
+        port_status = "PASS"
+    except ProductStartError as error:
+        port_status, port_detail = "FAIL", str(error)
+    checks.append({
+        "name": "port_strategy", "status": port_status, "detail": port_detail,
+    })
     status = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
+    settings = Settings.from_project_root(project_root)
+    providers = [item.to_dict() for item in ProviderRegistry(settings=settings).inspect()]
+    security_ready = SecurityMasterRepository(settings).is_initialized()
+    try:
+        market_ready = BootstrapManifestRepository(settings).latest_success("market_recent") is not None
+    except StorageError:
+        market_ready = False
     payload = {
         "command": "doctor",
         "status": status,
@@ -178,6 +233,13 @@ def _run_doctor(*, json_output: bool) -> int:
         "read_only": True,
         "credential_required": False,
         "checks": checks,
+        "project_root": str(settings.project_root),
+        "providers": providers,
+        "data": {
+            "security_master": "READY" if security_ready else "UNAVAILABLE",
+            "recent_market": "READY" if market_ready else "UNAVAILABLE",
+            "historical_market": "UNAVAILABLE",
+        },
     }
     if json_output:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -185,6 +247,8 @@ def _run_doctor(*, json_output: bool) -> int:
         print(f"QuantOS doctor  {status}")
         for item in checks:
             print(f"{item['name']:<24} {item['status']:<4}  {item['detail']}")
+        print(f"Security Master          {payload['data']['security_master']}")
+        print(f"Recent Market            {payload['data']['recent_market']}")
         print("Offline          YES")
         print("Read only        YES")
         print("Credential required NO")
@@ -250,6 +314,107 @@ def _run_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_data(args: argparse.Namespace) -> int:
+    if args.data_action is None or getattr(args, "dataset", None) is None:
+        args._command_parser.print_help()
+        return 2
+    try:
+        result = data_command.execute(args)
+    except ValueError as error:
+        print(render_json({"status": "FAIL", "error_code": str(error)}), file=sys.stderr)
+        return 2
+    print(render_json(result) if args.json_output else data_command.render(result))
+    return 0 if result["status"] == "PASS" else 2
+
+
+def _run_replay(args: argparse.Namespace) -> int:
+    if args.replay_command is None:
+        args._command_parser.print_help()
+        return 2
+    try:
+        result = replay_command.execute(args)
+    except Exception as error:
+        from quantos.replay.identity import HistoricalIdentityUnavailableError
+        from quantos.replay.importer import HistoricalImportError
+        from quantos.replay.storage import ReplayStorageError
+        from quantos.storage import SecurityMasterUnavailableError
+        if not isinstance(error, (
+            HistoricalIdentityUnavailableError, HistoricalImportError,
+            ReplayStorageError, SecurityMasterUnavailableError, ValueError,
+        )):
+            raise
+        print(render_json({"status": "FAIL", "error_code": str(error)}), file=sys.stderr)
+        return 2
+    print(render_json(result) if args.json_output else replay_command.render(result))
+    if args.replay_command == "run":
+        return 1 if result["summary"]["failed_points"] else 0
+    return 0
+
+
+def _run_serve(args: argparse.Namespace) -> int:
+    """Run the local-only read Research API."""
+
+    import uvicorn
+    from quantos.api import create_app
+
+    settings = Settings.from_project_root(args.project_root)
+    uvicorn.run(create_app(settings=settings), host=args.host, port=args.port)
+    return 0
+
+
+def _run_start(args: argparse.Namespace) -> int:
+    """Start the integrated local Research API and built Workspace."""
+
+    from quantos.product import (
+        ProductStartError, git_commit, launch_product, local_data_notice,
+        prepare_demo_workspace, resolve_workspace_assets,
+    )
+
+    project_root = Path(args.project_root).resolve()
+    source_root = Path(__file__).resolve().parents[2]
+    product_commit = git_commit(project_root)
+    try:
+        try:
+            workspace = resolve_workspace_assets(project_root)
+        except ProductStartError:
+            workspace = resolve_workspace_assets(source_root)
+        port = args.port if args.port is not None else 8000
+        if args.demo:
+            with tempfile.TemporaryDirectory(prefix="quantos-product-demo-") as temporary:
+                settings = prepare_demo_workspace(Path(temporary))
+                print("DEMO DATA — SYNTHETIC / FIXTURE DATA")
+                print("For research/product demonstration. Not investment advice.")
+                return launch_product(
+                    settings=settings, workspace_dir=workspace, host=args.host,
+                    port=port, port_explicit=args.port is not None,
+                    runtime_mode="DEMO", open_browser=not args.no_browser,
+                    build_commit=product_commit,
+                )
+        settings = Settings.from_project_root(project_root)
+        notice = local_data_notice(settings)
+        if notice:
+            print(notice, file=sys.stderr)
+        return launch_product(
+            settings=settings, workspace_dir=workspace, host=args.host,
+            port=port, port_explicit=args.port is not None,
+            runtime_mode="LOCAL", open_browser=not args.no_browser,
+            build_commit=product_commit,
+        )
+    except ProductStartError as error:
+        print(f"QuantOS start failed: {error}", file=sys.stderr)
+        return 2
+
+
+def _port_number(value: str) -> int:
+    try:
+        port = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("port must be an integer") from None
+    if not 1 <= port <= 65_535:
+        raise argparse.ArgumentTypeError("port must be between 1 and 65535")
+    return port
+
+
 def _run_report(
     args: argparse.Namespace, parser: argparse.ArgumentParser,
 ) -> int:
@@ -310,6 +475,44 @@ def _run_scheduler(
     return exit_code
 
 
+def _run_ask(args: argparse.Namespace) -> int:
+    try:
+        as_of_time = _aware_datetime(args.as_of_time) if args.as_of_time else None
+        session = ask_command.make_session(args.symbol, as_of_time,
+                                           live_cutoff=args.as_of_time is None,
+                                           no_research=args.no_research)
+        if args.question is not None:
+            result = session.ask(args.question)
+            print(render_json(result.to_dict() if hasattr(result, "to_dict") else result)
+                  if args.json_output else ask_command.render(result))
+            return 0 if result["status"] in {"PASS", "PARTIAL"} else 2
+        if not sys.stdin.isatty():
+            raise ask_command.AskFailure("QUESTION_REQUIRED")
+        print("QuantOS Ask：输入问题，输入 :q 退出。")
+        while True:
+            try:
+                question = input("ask> ").strip()
+            except EOFError:
+                break
+            if question.lower() in {":q", "exit", "quit"}:
+                break
+            if not question:
+                continue
+            try:
+                result = session.ask(question)
+                print(render_json(result.to_dict() if hasattr(result, "to_dict") else result)
+                      if args.json_output else ask_command.render(result))
+            except ask_command.AskFailure as error:
+                print(f"Ask failed: {error}", file=sys.stderr)
+        return 0
+    except (ask_command.AskFailure, ValueError) as error:
+        code = str(error) if isinstance(error, ask_command.AskFailure) else "TIMEZONE_REQUIRED"
+        print(render_json({"status": "FAIL", "error_code": code,
+                           "remediation": "Check symbol, time, provider availability, and the question."}),
+              file=sys.stderr)
+        return 2
+
+
 def _aware_datetime(value: str) -> datetime:
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None or parsed.utcoffset() is None:
@@ -333,6 +536,7 @@ def _parser() -> argparse.ArgumentParser:
         "doctor", help="check the local installation without network access"
     )
     doctor.add_argument("--json", action="store_true", dest="json_output")
+    doctor.add_argument("--project-root", type=Path, default=Path.cwd())
     demo = subparsers.add_parser(
         "demo", help="run an offline demo using audited synthetic data"
     )
@@ -359,6 +563,101 @@ def _parser() -> argparse.ArgumentParser:
     status.add_argument("--project-root", type=Path, default=Path.cwd())
     status.add_argument("--json", action="store_true", dest="json_output")
 
+    serve = subparsers.add_parser(
+        "serve", help="serve the local read-only Research API"
+    )
+    serve.add_argument("--project-root", type=Path, default=Path.cwd())
+    serve.add_argument(
+        "--host", choices=("127.0.0.1", "localhost", "::1"),
+        default="127.0.0.1",
+    )
+    serve.add_argument("--port", type=_port_number, default=8000)
+
+    start = subparsers.add_parser(
+        "start", help="start the integrated local Research Workspace"
+    )
+    start.add_argument("--project-root", type=Path, default=Path.cwd())
+    start.add_argument(
+        "--host", choices=("127.0.0.1", "localhost", "::1"),
+        default="127.0.0.1",
+    )
+    start.add_argument("--port", type=_port_number)
+    start.add_argument("--no-browser", action="store_true")
+    start.add_argument("--demo", action="store_true")
+
+    data = subparsers.add_parser(
+        "data", help="bootstrap or refresh persistent real-data foundations"
+    )
+    data.set_defaults(_command_parser=data)
+    data_actions = data.add_subparsers(dest="data_action")
+    bootstrap = data_actions.add_parser("bootstrap", help="initialize a bounded dataset")
+    bootstrap.set_defaults(_command_parser=bootstrap)
+    bootstrap_sets = bootstrap.add_subparsers(dest="dataset")
+    bootstrap_security = bootstrap_sets.add_parser("security-master")
+    bootstrap_security.add_argument("--provider", choices=("tushare", "baostock"), default="tushare")
+    bootstrap_security.add_argument("--project-root", type=Path, default=Path.cwd())
+    bootstrap_security.add_argument("--json", action="store_true", dest="json_output")
+    bootstrap_market = bootstrap_sets.add_parser("market")
+    bootstrap_market.add_argument("--provider", choices=("tushare",), default="tushare")
+    bootstrap_market.add_argument("--symbol", action="append", required=True)
+    bootstrap_market.add_argument("--trading-days", type=int, default=5)
+    bootstrap_market.add_argument("--as-of-time")
+    bootstrap_market.add_argument("--project-root", type=Path, default=Path.cwd())
+    bootstrap_market.add_argument("--json", action="store_true", dest="json_output")
+    refresh = data_actions.add_parser("refresh", help="append a current provider observation")
+    refresh.set_defaults(_command_parser=refresh)
+    refresh_sets = refresh.add_subparsers(dest="dataset")
+    refresh_security = refresh_sets.add_parser("security-master")
+    refresh_security.add_argument("--provider", choices=("tushare", "baostock"), default="tushare")
+    refresh_security.add_argument("--project-root", type=Path, default=Path.cwd())
+    refresh_security.add_argument("--json", action="store_true", dest="json_output")
+
+    replay = subparsers.add_parser(
+        "replay", help="run manifest-gated offline historical evaluation"
+    )
+    replay.set_defaults(_command_parser=replay)
+    replay_commands = replay.add_subparsers(dest="replay_command")
+    identity_derivation = replay_commands.add_parser(
+        "derive-identity",
+        help="derive retrospective effective-time identity from an audited snapshot",
+    )
+    identity_derivation.add_argument("--snapshot-id", required=True)
+    identity_derivation.add_argument("--project-root", type=Path, default=Path.cwd())
+    identity_derivation.add_argument("--json", action="store_true", dest="json_output")
+    historical_import = replay_commands.add_parser(
+        "import-market", help="explicitly import a bounded historical market range"
+    )
+    historical_import.add_argument("--provider", choices=("tushare",), default="tushare")
+    historical_import.add_argument("--symbol", action="append", required=True)
+    historical_import.add_argument("--start", required=True)
+    historical_import.add_argument("--end", required=True)
+    historical_import.add_argument("--as-of-time")
+    historical_import.add_argument("--project-root", type=Path, default=Path.cwd())
+    historical_import.add_argument("--json", action="store_true", dest="json_output")
+    replay_run = replay_commands.add_parser("run", help="run an offline replay campaign")
+    replay_run.add_argument("--dataset-id", required=True)
+    replay_run.add_argument("--symbol", action="append", required=True)
+    replay_run.add_argument("--start", required=True)
+    replay_run.add_argument("--end", required=True)
+    replay_run.add_argument(
+        "--mode", choices=("strict-operational", "retrospective-reconstructed"),
+        default="strict-operational",
+    )
+    replay_run.add_argument("--identity-authority-id")
+    replay_run.add_argument("--no-determinism-check", action="store_true")
+    replay_run.add_argument("--project-root", type=Path, default=Path.cwd())
+    replay_run.add_argument("--json", action="store_true", dest="json_output")
+    replay_show = replay_commands.add_parser("show", help="inspect a persisted campaign")
+    replay_show.add_argument("campaign_id")
+    replay_show.add_argument("--project-root", type=Path, default=Path.cwd())
+    replay_show.add_argument("--json", action="store_true", dest="json_output")
+    replay_failures = replay_commands.add_parser(
+        "failures", help="inspect structured campaign failures"
+    )
+    replay_failures.add_argument("campaign_id")
+    replay_failures.add_argument("--project-root", type=Path, default=Path.cwd())
+    replay_failures.add_argument("--json", action="store_true", dest="json_output")
+
     report = subparsers.add_parser(
         "report", help="generate Daily or time-sliced local reports"
     )
@@ -384,4 +683,11 @@ def _parser() -> argparse.ArgumentParser:
         "once", help="evaluate or execute one scheduler tick"
     )
     scheduler_command.add_arguments(once)
+    ask = subparsers.add_parser("ask", help="ask grounded questions about one stock")
+    ask.add_argument("symbol", help="stock symbol, such as 600519.SH")
+    ask.add_argument("--question", help="one question; omit for interactive mode")
+    ask.add_argument("--as-of-time", help="timezone-aware ISO cutoff; defaults to now")
+    ask.add_argument("--no-research", action="store_true",
+                     help="answer from market facts without Tavily search")
+    ask.add_argument("--json", action="store_true", dest="json_output")
     return parser

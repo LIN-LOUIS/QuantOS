@@ -181,7 +181,7 @@ def test_regular_http_4xx_is_not_retried(monkeypatch) -> None:
 def test_provider_retry_structured_logging_excludes_sensitive_error(
     monkeypatch, caplog
 ) -> None:
-    secret = "http://user:password@proxy.invalid:8080/?token=secret"
+    secret = "http://user:password@127.0.0.1:7890/?token=secret"
     opener = SequenceUrlOpen(URLError(secret), FakeResponse())
     sleeps: list[float] = []
     logger = logging.getLogger("quantos.eastmoney.retry.test")

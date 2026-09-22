@@ -1,8 +1,13 @@
 from datetime import datetime
+from urllib.error import HTTPError
 
 import pytest
 
-from quantos.collectors import GdeltNewsProvider, ProviderPayloadError
+from quantos.collectors import (
+    GdeltNewsProvider,
+    ProviderPayloadError,
+    ProviderRateLimitError,
+)
 from quantos.config import MARKET_TIMEZONE
 
 
@@ -77,4 +82,22 @@ def test_gdelt_rejects_malformed_payload_without_leaking_body():
             query_symbol="000001.SZ", query_term="平安银行",
             start_time=_dt(30), end_time=_dt(31),
         )
+    assert "secret" not in str(error.value)
+
+
+def test_gdelt_classifies_http_429_without_leaking_provider_response(monkeypatch):
+    def rate_limited(*_args, **_kwargs):
+        raise HTTPError(
+            "https://example.invalid", 429, "secret provider response", {}, None,
+        )
+
+    monkeypatch.setattr("quantos.collectors.gdelt.urllib.request.urlopen", rate_limited)
+    provider = GdeltNewsProvider(clock=lambda: _dt(31, 20))
+
+    with pytest.raises(ProviderRateLimitError) as error:
+        provider.search_company_news(
+            query_symbol="600519.SH", query_term="贵州茅台",
+            start_time=_dt(30), end_time=_dt(31), max_records=5,
+        )
+
     assert "secret" not in str(error.value)

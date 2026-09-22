@@ -1,3 +1,6 @@
-"""QuantOS market-data foundation."""
+"""QuantOS auditable financial research workspace."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+
+__version__ = version("quantos")

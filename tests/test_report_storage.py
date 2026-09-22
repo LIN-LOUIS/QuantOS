@@ -39,6 +39,17 @@ def test_persisted_report_contains_no_secret_or_authorization(tmp_path):
     assert b"api_key" not in combined and b"authorization" not in combined
 
 
+def test_read_only_report_repository_reads_and_rejects_writes(tmp_path):
+    report, _, _ = build_report(tmp_path / "inputs")
+    settings = Settings.from_project_root(tmp_path / "outputs")
+    path, _ = DailyReportRepository(settings).write(report)
+    read_only = DailyReportRepository(settings, read_only=True)
+
+    assert read_only.read_json(path).report_id == report.report_id
+    with pytest.raises(StorageError, match="read-only"):
+        read_only.write(report)
+
+
 def test_markdown_failure_does_not_partially_publish_report(tmp_path, monkeypatch):
     report, _, _ = build_report(tmp_path / "inputs")
     repository = DailyReportRepository(Settings.from_project_root(tmp_path / "outputs"))

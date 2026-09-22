@@ -2,9 +2,7 @@
 
 import csv
 from datetime import date
-import importlib.util
 import json
-from pathlib import Path
 import pytest
 import quantos.evaluation as evaluation
 
@@ -29,59 +27,6 @@ def _observation(built, trade_date):
         candidates=built["candidates"],
         duration_ms=built["duration_ms"],
     )
-
-
-def _evaluation_cli():
-    spec = importlib.util.spec_from_file_location(
-        "public_evaluation_cli", Path("scripts/evaluate_v1.py"),
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _public_metadata(**changes):
-    value = {
-        "schema_version": "quantos-public-export-v1",
-        "project_version": "0.1.0",
-        "source_private_commit": "0a0b87cce459d8b5d5cb0a3a89a408fc08a025ec",
-        "core_freeze_commit": "46038d95d384a9e4a8ad04d7ffbcecf25e25e20e",
-        "core_freeze_tag": "v0.1.0-core",
-        "distribution": "PUBLIC_BACKEND",
-    }
-    value.update(changes)
-    return value
-
-
-def test_public_evaluation_metadata_validates_without_private_git_history(tmp_path):
-    (tmp_path / "PUBLIC_EXPORT_METADATA.json").write_text(
-        json.dumps(_public_metadata()), encoding="utf-8",
-    )
-    assert _evaluation_cli().validate_public_provenance(tmp_path) == (
-        "PUBLIC_EXPORT_METADATA"
-    )
-
-
-@pytest.mark.parametrize("payload", (
-    _public_metadata(core_freeze_commit="0" * 40),
-    _public_metadata(schema_version="wrong-schema"),
-    {key: value for key, value in _public_metadata().items()
-     if key != "source_private_commit"},
-))
-def test_public_evaluation_metadata_fails_closed_on_wrong_or_missing_fields(
-    tmp_path, payload,
-):
-    (tmp_path / "PUBLIC_EXPORT_METADATA.json").write_text(
-        json.dumps(payload), encoding="utf-8",
-    )
-    with pytest.raises(SystemExit, match="provenance metadata is invalid"):
-        _evaluation_cli().validate_public_provenance(tmp_path)
-
-
-def test_public_evaluation_metadata_fails_closed_on_malformed_json(tmp_path):
-    (tmp_path / "PUBLIC_EXPORT_METADATA.json").write_text("{", encoding="utf-8")
-    with pytest.raises(SystemExit, match="provenance metadata is invalid"):
-        _evaluation_cli().validate_public_provenance(tmp_path)
 
 
 def test_single_candidate_fixture_synthesis_is_generated(tmp_path):

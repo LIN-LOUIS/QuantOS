@@ -29,14 +29,17 @@ _SYMBOL_PATTERN = re.compile(r"^\d{6}\.(SH|SZ|BJ)$")
 class MarketDataRepository:
     """Append-only Parquet persistence with mandatory PIT reads."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, *, read_only: bool = False) -> None:
         self.settings = settings
-        self.settings.ensure_directories()
-        self._initialize_catalog()
+        self.read_only = read_only
+        if not read_only:
+            self.settings.ensure_directories()
+            self._initialize_catalog()
 
     def write_raw(self, records: Sequence[RawMarketRecord]) -> int:
         """Append previously unseen raw provider records to raw Parquet."""
 
+        self._require_writable()
         if not records:
             return 0
         existing = self._existing_ids(
@@ -100,6 +103,7 @@ class MarketDataRepository:
     def write_bars(self, bars: Sequence[MarketBar]) -> int:
         """Append previously unseen normalized bars to partitioned Parquet."""
 
+        self._require_writable()
         if not bars:
             return 0
         existing = self._existing_ids(
@@ -166,6 +170,7 @@ class MarketDataRepository:
     def write_daily_bars(self, bars: Sequence[MarketBar]) -> int:
         """Append full-market daily batches without creating one file per symbol."""
 
+        self._require_writable()
         if not bars:
             return 0
         if any(bar.frequency != "1d" for bar in bars):
@@ -297,7 +302,13 @@ class MarketDataRepository:
             raise StorageError(f"failed to initialize DuckDB catalog: {exc}") from exc
 
     def _connect(self) -> duckdb.DuckDBPyConnection:
+        if self.read_only:
+            return duckdb.connect(":memory:")
         return duckdb.connect(str(self.settings.duckdb_path))
+
+    def _require_writable(self) -> None:
+        if self.read_only:
+            raise StorageError("market repository is read-only")
 
     @staticmethod
     def _copy_to_parquet(

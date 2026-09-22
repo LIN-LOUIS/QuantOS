@@ -89,6 +89,11 @@ from .news import (
     NewsRecord,
 )
 from .securities import SecurityMaster
+from .bootstrap import (
+    BootstrapManifest, ProviderAvailability, ProviderContract, ProviderFailureCode,
+    ProviderHealthRecord, SecurityIdentityRecord, SecurityMasterSnapshot,
+    canonical_security_id,
+)
 from .sectors import (
     SectorMembership,
     SectorMembershipSnapshot,
@@ -166,6 +171,9 @@ __all__ = [
     "AttributionEvidenceFact",
     "AttributionEvidenceBundle",
     "SecurityMaster",
+    "BootstrapManifest", "ProviderAvailability", "ProviderContract",
+    "ProviderFailureCode", "ProviderHealthRecord", "SecurityIdentityRecord",
+    "SecurityMasterSnapshot", "canonical_security_id",
     "SectorMembership",
     "SectorMembershipSnapshot",
     "SectorAnomaly",

@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import datetime, time
 from pathlib import Path
 from typing import Iterable
 
 from quantos import __version__
-from quantos.config import Settings
+from quantos.config import MARKET_TIMEZONE, Settings
+from quantos.data import ProviderRegistry
+from quantos.storage import (
+    BootstrapManifestRepository, SecurityMasterRepository, StorageError,
+)
+from quantos.replay.storage import HistoricalDatasetRepository, ReplayStorageError
 
 
 def inspect_status(project_root: Path | str) -> dict[str, object]:
@@ -29,6 +35,28 @@ def inspect_status(project_root: Path | str) -> dict[str, object]:
     )
     scheduler_path = (
         settings.data_root / "runtime" / "scheduler" / "scheduler_runtime.sqlite3"
+    )
+    security_repository = SecurityMasterRepository(settings)
+    security_invalid = False
+    try:
+        snapshots = security_repository.list_snapshots() if security_repository.is_initialized() else ()
+    except StorageError:
+        snapshots = ()
+        security_invalid = True
+    manifests = BootstrapManifestRepository(settings)
+    market_manifest_invalid = False
+    try:
+        recent_manifest = manifests.latest_success("market_recent")
+    except StorageError:
+        recent_manifest = None
+        market_manifest_invalid = True
+    providers = tuple(item.to_dict() for item in ProviderRegistry(settings=settings).inspect())
+    try:
+        replay_datasets = HistoricalDatasetRepository(settings).list_visible()
+    except ReplayStorageError:
+        replay_datasets = ()
+    replay_availability, replay_reason = _historical_replay_availability(
+        replay_datasets, snapshots,
     )
     if knowledge_documents and knowledge_indexes:
         knowledge_readiness = "READY"
@@ -57,6 +85,31 @@ def inspect_status(project_root: Path | str) -> dict[str, object]:
             "availability": "AVAILABLE" if scheduler_path.is_file() else "NONE",
             "path": str(scheduler_path),
         },
+        "providers": providers,
+        "data_availability": {
+            "security_master": {
+                "availability": ("CORRUPT" if security_invalid else
+                                 "READY" if snapshots else "UNAVAILABLE"),
+                "snapshot_count": len(snapshots),
+                "coverage_start": snapshots[0].observed_at.isoformat() if snapshots else None,
+                "coverage_end": snapshots[-1].observed_at.isoformat() if snapshots else None,
+            },
+            "recent_market": {
+                "availability": ("CORRUPT" if market_manifest_invalid else
+                                 "READY" if recent_manifest else "UNAVAILABLE"),
+                "bootstrap_id": recent_manifest.bootstrap_id if recent_manifest else None,
+            },
+            "historical_market": {"availability": "UNAVAILABLE"},
+            "historical_replay": {
+                "availability": replay_availability,
+                "dataset_count": len(replay_datasets),
+                "reason_code": replay_reason,
+            },
+            "historical_identity": {
+                "availability": "PARTIAL" if snapshots else "UNAVAILABLE",
+                "limitation": "coverage starts at the first persisted provider observation",
+            },
+        },
     }
 
 
@@ -67,6 +120,7 @@ def render_status(value: dict[str, object]) -> str:
     daily = value["daily_report"]
     time_slice = value["time_slice"]
     scheduler = value["scheduler_runtime"]
+    data = value["data_availability"]
     return "\n".join((
         "QuantOS Local Status",
         f"Package Version     {value['package_version']}",
@@ -77,6 +131,10 @@ def render_status(value: dict[str, object]) -> str:
         f"Daily Report        {daily['availability']}",
         f"TimeSlice           {time_slice['availability']}",
         f"Scheduler Runtime   {scheduler['availability']}",
+        f"Security Master    {data['security_master']['availability']}",
+        f"Recent Market      {data['recent_market']['availability']}",
+        f"Historical Market  {data['historical_market']['availability']}",
+        f"Historical Replay  {data['historical_replay']['availability']}",
         "Offline              YES",
         "Read only            YES",
     ))
@@ -108,3 +166,32 @@ def _product_status(files: tuple[Path, ...], partition_prefix: str) -> dict[str,
         "file_count": len(files),
         "latest_trade_date": dates[-1] if dates else None,
     }
+
+
+def _historical_replay_availability(datasets, snapshots) -> tuple[str, str | None]:
+    if not datasets:
+        return "UNAVAILABLE", "HISTORICAL_DATA_UNAVAILABLE"
+    if not snapshots:
+        return "UNAVAILABLE", "IDENTITY_HISTORY_UNAVAILABLE"
+    for dataset in datasets:
+        for day in dataset.trading_dates:
+            cutoff = datetime.combine(day, time(18, 0), tzinfo=MARKET_TIMEZONE)
+            visible = tuple(item for item in snapshots if item.observed_at <= cutoff)
+            preferred = tuple(item for item in visible if item.provider_id == "tushare")
+            if not visible:
+                continue
+            snapshot = max(preferred or visible, key=lambda item: (
+                item.observed_at, item.snapshot_id,
+            ))
+            symbols = {
+                item.security.symbol
+                for item in snapshot.records
+                if item.security.available_at <= cutoff
+                and item.security.effective_from <= day
+                and (item.security.effective_to is None
+                     or item.security.effective_to >= day)
+                and item.security.is_active
+            }
+            if symbols.intersection(dataset.symbols):
+                return "READY", None
+    return "UNAVAILABLE", "IDENTITY_HISTORY_UNAVAILABLE"

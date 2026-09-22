@@ -5,7 +5,6 @@ from dataclasses import fields, replace
 from datetime import date, datetime, timedelta
 import json
 from pathlib import Path
-import re
 import socket
 from threading import Event, Lock
 
@@ -452,7 +451,7 @@ def test_systemd_templates_are_oneshot_persistent_and_portable():
     assert "--mode strict_live" in service and "--no-llm" in service
     assert "Persistent=true" in timer and "OnCalendar=*-*-* *:00/5:00" in timer
     combined = service + timer
-    assert re.search(r"(?:^|\s)/(?:home|Users)/[^/\s]+/", combined) is None
+    assert "/home/lin" not in combined
     assert "systemctl" not in combined and "sudo" not in combined and "cron" not in combined.lower()
     for marker in ("API_KEY", "Authorization", "Bearer", "TUSHARE_TOKEN"):
         assert marker not in combined

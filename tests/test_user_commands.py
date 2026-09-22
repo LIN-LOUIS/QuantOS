@@ -69,7 +69,7 @@ def test_help_tree_contains_only_supported_commands(capsys):
         cli.main(["--help"])
     top = capsys.readouterr().out
     assert all(name in top for name in (
-        "doctor", "demo", "health", "status", "report", "scheduler",
+        "doctor", "demo", "health", "status", "data", "replay", "report", "scheduler",
     ))
     assert "intraday" not in top.lower()
 

@@ -29,6 +29,14 @@ class ProviderConfigurationError(MarketDataError):
     """Required provider configuration is missing or unusable."""
 
 
+class ProviderAuthenticationError(MarketDataError):
+    """Provider rejected configured credentials."""
+
+
+class ProviderRateLimitError(MarketDataError):
+    """Provider rejected the request because a bounded quota was reached."""
+
+
 @dataclass(frozen=True, slots=True)
 class RawMarketRecord:
     """Immutable provider payload retained before normalization."""
