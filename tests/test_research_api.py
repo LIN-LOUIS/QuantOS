@@ -71,7 +71,7 @@ def test_health_and_status_are_distinct_read_only_and_path_safe(tmp_path):
     assert health.json() == {
         "status": "ok", "service": "quantos-research-api", "api_version": "v1",
         "runtime_mode": "LOCAL", "data_label": "LOCAL_PERSISTED_DATA",
-        "quantos_version": "0.3.0", "build_commit": "UNKNOWN",
+        "quantos_version": "0.3.1", "build_commit": "UNKNOWN",
     }
     assert status.status_code == 200
     payload = status.json()

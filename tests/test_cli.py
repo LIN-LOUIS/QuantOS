@@ -224,7 +224,7 @@ def test_version_is_available_from_unified_cli(capsys):
     with pytest.raises(SystemExit) as info:
         cli.main(["--version"])
     assert info.value.code == 0
-    assert capsys.readouterr().out == "quantos 0.3.0\n"
+    assert capsys.readouterr().out == "quantos 0.3.1\n"
 
 
 def test_doctor_json_is_offline_read_only_and_needs_no_credentials(capsys):

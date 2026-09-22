@@ -7,8 +7,9 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
-import tomllib
 import zipfile
+
+from quantos._compat import tomllib
 
 
 _ROOT_FILES = ("LICENSE", "README.md", "pyproject.toml")

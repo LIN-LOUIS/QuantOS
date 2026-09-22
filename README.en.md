@@ -1,246 +1,179 @@
 # QuantOS
 
-[English](README.en.md) | [简体中文](README.md)
+[简体中文](README.md) | English
 
-**Point-in-Time Safe Financial Intelligence Backend**
+**Auditable Financial Research Workspace for Chinese A-shares.** QuantOS joins
+grounded Ask, bounded analytics, provenance, traces, and PIT-safe historical
+replay in one local workspace. Python computes facts and enforces temporal
+policy; language models may only explain validated structured context.
 
-QuantOS is a deterministic-first, point-in-time-safe financial intelligence
-backend for auditable, reproducible, and evidence-grounded market analysis.
-It is an engineering backend—not an AI stock picker, trading bot, or order
-execution system.
+The current maintenance release is **v0.3.1** and supports Python 3.10, 3.11,
+and 3.12.
 
-## Why QuantOS
+## Quick Demo
 
-Financial analysis becomes unreliable when future information leaks into a
-historical decision, evidence is confused with background knowledge, or an LLM
-is treated as the source of numerical truth. QuantOS makes these boundaries
-explicit and validates them across storage, retrieval, synthesis, products,
-operations, and replay.
-
-## Design principles
-
-- **Point-in-Time safety:** availability time, event time, and run time remain
-  distinct; future-known data is excluded before ranking.
-- **Deterministic first:** Python owns market facts, eligibility, identities,
-  ranking, and validation. LLMs may produce guarded explanations only.
-- **Evidence-grounded attribution:** causal language requires eligible event
-  evidence. Retrieved knowledge never becomes attribution evidence.
-- **Closed, versioned artifacts:** logical identities bind material inputs;
-  storage validates identities and fails closed on corruption or collisions.
-- **Auditable operations:** manifests, safe reason codes, exact artifact
-  references, and provenance make local replay inspectable.
-
-## Architecture
-
-```text
-Market Data
-    ↓
-Candidate
-    ↓
-Evidence
-    ↓
-Attribution
-    ↓
-Knowledge Retrieval
-    ↓
-Knowledge Context
-    ↓
-Guarded LLM Synthesis
-    ↓
-Daily Intelligence
-    ↓
-PRE_OPEN / POST_CLOSE
-    ↓
-Operational Manifest
-    ↓
-Scheduler
-```
-
-See [Architecture](docs/architecture.md) and [Core concepts](docs/concepts.md).
-
-## Core features
-
-- Timezone-aware market and availability timestamps with explicit `as_of_time`
-- Immutable local market, evidence, knowledge, context, report, and run artifacts
-- PIT-safe lexical retrieval with exact index selection
-- Physically separated historical and retrospective knowledge lanes
-- Guarded structured synthesis with evidence and knowledge reference validation
-- Knowledge-aware Daily Intelligence v1/v2 and TimeSlice products
-- PRE_OPEN reuse of an exact prior Daily artifact and POST_CLOSE exact reuse
-- Operational readiness, failure manifests, scheduler leases, fencing, and retry
-- Offline multi-day evaluation with replay and PIT metrics
-
-## PIT model
-
-`market_event_time` identifies the market event being explained.
-`RunContext.as_of_time` is the operational evaluation cutoff. A knowledge item
-is historically visible only when its `available_at` is no later than the event
-cutoff. Publication time alone is not sufficient. PIT filtering occurs before
-BM25 corpus statistics and ranking.
-
-Naive datetimes are rejected for PIT-critical contracts. Equivalent aware
-datetimes are canonicalized by instant for logical identity.
-
-## Knowledge is not evidence
-
-QuantOS keeps these types separate:
-
-```text
-KnowledgeDocument != EventEvidence != AttributionEvidence
-                  != RetrievedContext != LLMContext
-```
-
-Knowledge provides background. It does not grant attribution eligibility, and
-knowledge-only input cannot support a causal claim.
-
-## STRICT and RESEARCH
-
-- `strict_live` uses only information known by the market-event cutoff.
-- `research` may additionally expose retrospective knowledge under an explicit
-  corpus cutoff, in a separate lane.
-
-A STRICT consumer rejects a RESEARCH product; retrospective content is never
-silently dropped to manufacture a STRICT result.
-
-## Supported in V1
-
-PRE_OPEN and POST_CLOSE intelligence, STRICT and RESEARCH modes, market data,
-candidate generation, evidence, attribution, local canonical knowledge,
-lexical retrieval, context assembly, guarded synthesis, Daily/TimeSlice
-products, operational manifests, deterministic scheduling, and offline
-evaluation.
-
-## Explicit non-goals
-
-V1 does not provide INTRADAY Knowledge integration, semantic/vector retrieval,
-runtime index rebuilding, autonomous retrieval planning, a REST API, web or
-desktop UI, authentication/RBAC, cloud deployment, commercial data licensing,
-or trade/order execution.
-
-QuantOS V1 currently publishes the financial-intelligence backend only. Web,
-desktop, and commercial product layers are intentionally outside the current
-public backend scope. Future product interfaces may be released as open-source
-or commercial components depending on the distribution strategy.
-
-## Installation
-
-Python **3.10 or newer** is required.
+Build the Workspace once, then launch the complete offline product with one
+command:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install -e '.[dev]'
+cd web && npm ci && npm run build && cd ..
+quantos doctor --project-root .
+quantos start --demo
 ```
 
-The package has not been published to PyPI; do not use `pip install quantos` as
-a release-install command.
+The launcher binds only to loopback, chooses another port if the default 8000
+is occupied, waits for `/v1/health`, and then opens the browser. Demo Mode is
+clearly marked as synthetic fixture data and never reads provider credentials
+or uses the network. Use `--no-browser` in headless environments.
 
-## Quick start
+The core workflow is **Observe → Ask → Analyze → Inspect Provenance → Inspect
+Replay**. See the [60–90 second demo script](docs/demo-script.md). Product
+screenshots below were captured from the deterministic Demo Mode.
+
+### Product preview
+
+![QuantOS Demo Mode overview](docs/screenshots/v0.3.0-overview.jpg)
+
+![Grounded Ask with structured trace](docs/screenshots/v0.3.0-ask-trace.jpg)
+
+## From Fresh Clone to Real Data
+
+Install the package in an isolated Python environment, configure credentials
+outside the repository, then inspect and bootstrap the bounded local datasets:
 
 ```bash
-git clone https://github.com/LIN-LOUIS/QuantOS.git
-cd QuantOS
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-quantos --version
-quantos doctor
-quantos demo
-quantos status
+python -m pip install -e '.[dev]'
+quantos doctor --project-root .
+quantos data bootstrap security-master --provider tushare --project-root .
+quantos data bootstrap market --provider tushare \
+  --symbol 600519.SH --trading-days 5 --project-root .
+quantos status --project-root .
+quantos ask 600519.SH --question "最近一个交易日表现怎么样？"
 ```
 
-`quantos demo` uses `SYNTHETIC_FIXTURE` and is **NOT REAL-HISTORICAL
-PERFORMANCE**. It needs no API key and makes no request to a real LLM or real
-market/news provider. Real market reports still require provider/configuration,
-canonical local artifacts, and the corresponding Evidence/Knowledge preparation;
-cloning the repository alone does not create a real A-share report. See
-[Quick start](docs/quickstart.md).
-
-
-## Real workflow commands
+Tushare commands require `TUSHARE_TOKEN` in the process environment. QuantOS
+stores only whether configuration is present; it does not persist credential
+values. BaoStock can bootstrap a Security Master without a token:
 
 ```bash
-quantos report --help
-quantos report daily --help
-quantos report pre-open --help
-quantos report post-close --help
-quantos scheduler once --help
+quantos data bootstrap security-master --provider baostock --project-root .
 ```
 
-`quantos doctor` checks whether the environment can run QuantOS. `quantos status`
-inspects which real local data and products exist in the workspace, offline and
-read-only. Doctor PASS does not imply Daily READY. The real report commands
-need prepared local canonical market data, Evidence, Knowledge/configuration,
-and the corresponding provider/configuration. If required artifacts are absent,
-they fail closed with a structured reason: no automatic download, demo switch,
-or synthetic report.
+Bootstrap is bounded, append-only, idempotent, and audited under the local
+`data/` tree. `quantos data refresh security-master` appends a changed provider
+observation while preserving earlier snapshots. Normal `quantos ask` reads the
+persistent Security Master and local market storage; it never initializes
+identity by making a live `stock_basic` request.
 
-## CLI entry points
+See the public [architecture](docs/architecture.md) and
+[core concepts](docs/concepts.md) for provider, PIT, lineage, and historical
+coverage details.
+
+## Historical Replay
+
+Historical import is explicit and separate from offline replay:
 
 ```bash
-quantos doctor
-quantos demo
-quantos status
-quantos health --help
-python -m quantos --help
-python scripts/run_quantos.py --help
-python scripts/generate_daily_report.py --help
-python scripts/generate_time_slice_report.py --help
-python scripts/run_scheduler_once.py --help
-python scripts/evaluate_v1.py --help
+quantos replay import-market --provider tushare --symbol 600519.SH \
+  --start 2026-06-01 --end 2026-06-30
+quantos replay run --dataset-id DATASET_ID --symbol 600519.SH \
+  --start 2026-06-01 --end 2026-06-30
+quantos replay show CAMPAIGN_ID
+quantos replay failures CAMPAIGN_ID
 ```
 
-Provider-capable paths are explicit and environment-configured. The default
-evaluation and the public CI suite use local fakes and make no provider request.
+Replay reads only successful historical dataset manifests and PIT-visible
+Security Master snapshots. It never downloads missing data automatically. See
+the public [core concepts](docs/concepts.md).
 
-## Offline evaluation
+Strict operational identity remains the default. Retrospective reconstruction
+requires an explicitly derived authority artifact and mode:
 
-**Data source: `SYNTHETIC_FIXTURE` — NOT REAL-HISTORICAL PERFORMANCE.**
-
-The audited `evaluation/v1-strict-10d/` snapshot contains 10 trading days, 19
-runs (10 POST_CLOSE and 9 eligible PRE_OPEN replays), 20 candidates, 100%
-POST_CLOSE and PRE_OPEN completion, 100% evidence and attribution coverage, a
-fixture-designed 50% READY / 50% EMPTY knowledge split, 100% synthesis success,
-zero PIT violations, and zero determinism mismatches.
-
-> **These values come from deterministic synthetic fixtures and validate
-> engineering behavior, not real-world financial performance.** They do not
-> measure market accuracy, alpha, PnL, Sharpe ratio, or production latency.
-
-## Repository structure
-
-```text
-src/quantos/                  Backend schemas, logic, storage, and runtime
-scripts/                      Stable local backend and evaluation CLIs
-tests/                        Offline unit, integration, and system tests
-evaluation/v1-strict-10d/     Audited synthetic evaluation snapshot
-ops/systemd/                  Scheduler service examples
-docs/                         Architecture, concepts, and quick start
+```bash
+quantos replay derive-identity --snapshot-id SNAPSHOT_ID
+quantos replay run --mode retrospective-reconstructed \
+  --identity-authority-id AUTHORITY_ID --dataset-id DATASET_ID \
+  --symbol 600519.SH --start 2026-06-01 --end 2026-06-30
 ```
 
-## Current status
+Strict and retrospective replay semantics remain explicit in every result.
 
-This repository candidate is based on the internally audited V1 core freeze
-reference `46038d95...` and includes the audited offline evaluation harness.
-It is a backend release candidate, not a production-ready trading platform.
+## Local Research API
 
-## Roadmap
+Install development dependencies and start the read-only API on the loopback
+interface:
 
-- Real-historical replay evaluation using appropriately licensed data
-- Packaging and operational documentation hardening
-- Optional semantic/vector retrieval research after measured lexical baselines
-- Product interface decisions for API, web, and desktop layers
+```bash
+python -m pip install -e '.[dev]'
+quantos serve --project-root .
+curl -s http://127.0.0.1:8000/v1/health
+curl -s http://127.0.0.1:8000/v1/status
+```
 
-Roadmap items are not implemented V1 capabilities.
+Run bounded semantic analytics:
 
-## Disclaimer
+```bash
+curl -s http://127.0.0.1:8000/v1/analytics/query \
+  -H 'content-type: application/json' \
+  -d '{"metrics":["close"],"dimensions":["trading_date"],
+       "entities":["600519.SH"],
+       "time_range":{"start":"2026-08-20","end":"2026-09-18"},
+       "filters":[],"sort":[],"limit":20,
+       "as_of_time":"2026-09-18T18:00:00+08:00"}'
+```
 
-QuantOS is software for research and engineering. Its outputs are not investment
-advice, trading instructions, or guarantees of future performance. Users are
-responsible for data rights, validation, risk controls, and regulatory duties.
+Ask through the canonical offline application service, then inspect the
+returned `trace_id`:
 
-## License status
+```bash
+curl -s http://127.0.0.1:8000/v1/ask \
+  -H 'content-type: application/json' \
+  -d '{"symbol":"600519.SH","question":"最近一个交易日表现怎么样？",
+       "no_research":true}'
+curl -s http://127.0.0.1:8000/v1/traces/TRACE_ID
+```
 
-QuantOS is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+The server accepts loopback hosts only. API endpoints never bootstrap or
+refresh data and never call a provider. See the public
+[architecture](docs/architecture.md) for availability, provenance, and
+security boundaries.
+
+## Local Research Workspace
+
+For the integrated product path, build assets and run one launcher:
+
+```bash
+cd web && npm ci && npm run build && cd ..
+quantos start --project-root .
+```
+
+This serves the built Workspace and Research API from one loopback origin. It
+does not bootstrap, refresh, or contact providers. A fresh project with no
+local data starts safely and explains how to use Demo Mode or bootstrap data.
+
+Developers can still start the API and Vite separately:
+
+```bash
+quantos serve --project-root .
+cd web
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. The browser uses relative `/v1` requests through
+the Vite proxy; it never reads QuantOS storage or contacts providers directly.
+
+The product default API target remains `http://127.0.0.1:8000`. If that port is
+already occupied in a local development environment, run QuantOS on another
+loopback port and explicitly override only the Vite proxy target:
+
+```bash
+quantos serve --project-root . --host 127.0.0.1 --port 8010
+cd web
+QUANTOS_API_TARGET=http://127.0.0.1:8010 npm run dev
+```
+
+Validate the frontend with `npm test`, `npm run typecheck`, and
+`npm run build`. See the public [quickstart](docs/quickstart.md) and
+[architecture](docs/architecture.md) for development and security boundaries.

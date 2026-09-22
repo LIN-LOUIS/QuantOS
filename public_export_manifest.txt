@@ -1,5 +1,5 @@
 # QuantOS public export manifest v2
-# Audited v0.3.0 product snapshot on preserved public history.
+# Audited v0.3.1 maintenance snapshot on preserved public history.
 .github/workflows/tests.yml
 .gitignore
 CHANGELOG.md
@@ -22,6 +22,7 @@ docs/quantos-ask.md
 docs/quickstart.md
 docs/quickstart.zh-CN.md
 docs/release-v0.3.0.md
+docs/release-v0.3.1.md
 docs/screenshots/v0.3.0-analytics-provenance.jpg
 docs/screenshots/v0.3.0-ask-trace.jpg
 docs/screenshots/v0.3.0-overview.jpg
@@ -52,6 +53,7 @@ scripts/smoke_llm_synthesis.py
 scripts/smoke_strict_live_evidence.py
 src/quantos/__init__.py
 src/quantos/__main__.py
+src/quantos/_compat.py
 src/quantos/announcement_pipeline.py
 src/quantos/anomalies.py
 src/quantos/api/__init__.py

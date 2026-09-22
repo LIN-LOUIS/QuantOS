@@ -31,20 +31,20 @@ describe("QuantOS workspace", () => {
     const api = fakeApi({ health: vi.fn().mockResolvedValue({
       status: "ok", service: "quantos-research-api", api_version: "v1",
       runtime_mode: "DEMO", data_label: "SYNTHETIC_FIXTURE",
-      quantos_version: "0.3.0", build_commit: "demo123",
+      quantos_version: "0.3.1", build_commit: "demo123",
     }) });
     renderAt("/", api);
 
     expect(await screen.findByText("DEMO DATA")).toBeInTheDocument();
     expect(screen.getByText(/Synthetic fixture data/)).toBeInTheDocument();
     expect(screen.getByText(/Not investment advice/)).toBeInTheDocument();
-    expect(screen.getByText(/0.3.0/)).toBeInTheDocument();
+    expect(screen.getByText(/0.3.1/)).toBeInTheDocument();
   });
 
   it("shows an actionable API disconnect state and retries", async () => {
     const health = vi.fn()
       .mockRejectedValueOnce(new TypeError("fetch failed"))
-      .mockResolvedValue({ status: "ok", service: "quantos-research-api", api_version: "v1", runtime_mode: "LOCAL", data_label: "LOCAL_PERSISTED_DATA", quantos_version: "0.3.0", build_commit: "fixture" });
+      .mockResolvedValue({ status: "ok", service: "quantos-research-api", api_version: "v1", runtime_mode: "LOCAL", data_label: "LOCAL_PERSISTED_DATA", quantos_version: "0.3.1", build_commit: "fixture" });
     renderAt("/", fakeApi({ health }));
 
     expect(await screen.findByText("QuantOS Research API is unavailable.")).toBeInTheDocument();

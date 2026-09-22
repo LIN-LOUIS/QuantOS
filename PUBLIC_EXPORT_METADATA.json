@@ -1,8 +1,8 @@
 {
   "schema_version": "quantos-public-export-v2",
-  "project_version": "0.3.0",
-  "source_snapshot": "audited-v0.3.0-product-snapshot",
+  "project_version": "0.3.1",
+  "source_snapshot": "audited-v0.3.1-maintenance-snapshot",
   "distribution": "PUBLIC_PRODUCT",
-  "public_parent_commit": "c944850d5229cf6d9a7303d7cea9831dae593312",
+  "public_parent_commit": "c309e862c604b44dc6644984ff696cc44cb9a26c",
   "public_history_policy": "preserve-existing-public-history"
 }

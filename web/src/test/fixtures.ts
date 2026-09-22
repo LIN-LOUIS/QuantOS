@@ -33,7 +33,7 @@ export function fakeApi(overrides: Partial<ResearchApi> = {}): ResearchApi {
     summary: { requested_points: 22, executed_points: 22, pass_points: 0, partial_points: 22, failed_points: 0, pit_rejection_count: 0, deterministic_mismatch_count: 0, market_pit_violation_count: 0, evidence_pit_violation_count: 0, report_pit_violation_count: 0, knowledge_pit_violation_count: 0 },
   };
   return {
-    health: vi.fn().mockResolvedValue({ status: "ok", service: "quantos-research-api", api_version: "v1", runtime_mode: "LOCAL", data_label: "LOCAL_PERSISTED_DATA", quantos_version: "0.3.0", build_commit: "fixture" }),
+    health: vi.fn().mockResolvedValue({ status: "ok", service: "quantos-research-api", api_version: "v1", runtime_mode: "LOCAL", data_label: "LOCAL_PERSISTED_DATA", quantos_version: "0.3.1", build_commit: "fixture" }),
     status: vi.fn().mockResolvedValue({ providers: [{ provider_id: "tushare", availability: "READY" }], data_availability: { security_master: { availability: "READY" }, historical_market: { availability: "PARTIAL" } }, research_availability: { evidence: "UNAVAILABLE", attribution: "PARTIAL", knowledge: "DISABLED", reports: "READY" }, replay_availability: { status: "READY", dataset_count: 1 } }),
     ask: vi.fn().mockResolvedValue(askResult),
     trace: vi.fn().mockResolvedValue({ trace_id: "a".repeat(32), request_id: "r".repeat(64), intent: "MARKET_OVERVIEW", raw_question: "最近表现？", normalized_question: "最近表现？", canonical_as_of_time: "2026-09-18T18:00:00+08:00", query_plan: { as_of_time: "2026-09-18T18:00:00+08:00", steps: ["market.snapshot"] }, tool_invocations: [{ capability: "market.snapshot", status: "PASS" }], reason_codes: ["OK"], limitations: [], timings: { total_ms: 12 } }),
