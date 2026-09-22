@@ -9,6 +9,8 @@ agent, prediction, or trading capabilities.
 - Restored Python 3.10 compatibility for release metadata and bundle creation.
 - Added `tomli` only on Python versions earlier than 3.11; Python 3.11 and newer
   continue to use the standard-library `tomllib`.
+- Made persisted market-date filtering use the configured exchange timezone,
+  independent of the host or CI runner timezone.
 - Kept public CI coverage for Python 3.10, 3.11, and 3.12, with independent
   matrix results.
 

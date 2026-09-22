@@ -227,8 +227,19 @@ def test_version_is_available_from_unified_cli(capsys):
     assert capsys.readouterr().out == "quantos 0.3.1\n"
 
 
-def test_doctor_json_is_offline_read_only_and_needs_no_credentials(capsys):
-    assert cli.main(["doctor", "--json"]) == 0
+def test_doctor_json_is_offline_read_only_and_needs_no_credentials(
+    tmp_path, monkeypatch, capsys,
+):
+    workspace = tmp_path / "web" / "dist"
+    (workspace / "assets").mkdir(parents=True)
+    (workspace / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    monkeypatch.setattr(
+        "quantos.product.select_local_port", lambda *_args, **_kwargs: 8000,
+    )
+
+    assert cli.main([
+        "doctor", "--project-root", str(tmp_path), "--json",
+    ]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "PASS"
     assert payload["offline"] is True

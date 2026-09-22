@@ -257,11 +257,11 @@ class MarketDataRepository:
         clauses = ["available_at <= ?", "symbol = ?"]
         parameters: list[object] = [as_of_time, symbol]
         if start_date is not None:
-            clauses.append("CAST(timestamp AS DATE) >= ?")
-            parameters.append(start_date)
+            clauses.append("CAST(timezone(?, timestamp) AS DATE) >= ?")
+            parameters.extend([self.settings.market_timezone.key, start_date])
         if end_date is not None:
-            clauses.append("CAST(timestamp AS DATE) <= ?")
-            parameters.append(end_date)
+            clauses.append("CAST(timezone(?, timestamp) AS DATE) <= ?")
+            parameters.extend([self.settings.market_timezone.key, end_date])
         return self._query_bars(pattern, " AND ".join(clauses), parameters)
 
     def load_market_bar_history(

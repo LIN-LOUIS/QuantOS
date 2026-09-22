@@ -155,6 +155,35 @@ def test_read_by_symbol_supports_date_range(repository: MarketDataRepository) ->
     assert bars[0].symbol == "600000.SH"
 
 
+def test_read_by_symbol_date_range_uses_market_timezone(
+    repository: MarketDataRepository, monkeypatch,
+) -> None:
+    trade_date = date(2026, 8, 20)
+    bar = replace(
+        make_daily_bar(trade_date),
+        timestamp=datetime.combine(
+            trade_date, datetime.min.time(), tzinfo=SHANGHAI,
+        ),
+    )
+    repository.write_daily_bars([bar])
+    connect = repository._connect
+
+    def connect_in_utc():
+        connection = connect()
+        connection.execute("SET TimeZone='UTC'")
+        return connection
+
+    monkeypatch.setattr(repository, "_connect", connect_in_utc)
+    bars = repository.read_by_symbol(
+        bar.symbol,
+        as_of_time=datetime(2026, 9, 1, 20, 0, tzinfo=SHANGHAI),
+        start_date=trade_date,
+        end_date=trade_date,
+    )
+
+    assert bars == [bar]
+
+
 def test_read_requires_timezone_aware_as_of(repository: MarketDataRepository) -> None:
     with pytest.raises(ValueError, match="as_of_time"):
         repository.read_by_date(

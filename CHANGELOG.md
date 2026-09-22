@@ -50,6 +50,8 @@ real-historical performance validation, order execution, a public HTTP API, or U
 
 - Fixed Python 3.10 TOML parsing with a conditional `tomli` compatibility
   dependency while retaining the standard library on Python 3.11 and newer.
+- Fixed market-date filtering so UTC CI runners preserve Asia/Shanghai trading
+  dates.
 - Made the public README Chinese-first and retained a complete English README.
 - Kept the Python 3.10, 3.11, and 3.12 CI matrix with independent job results.
 - Added no research, data-provider, replay, or trading capabilities.
