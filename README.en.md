@@ -10,6 +10,11 @@ policy; language models may only explain validated structured context.
 The current maintenance release is **v0.3.1** and supports Python 3.10, 3.11,
 and 3.12.
 
+The `public-sync/phase-8a2-1` branch contains an unreleased Public Preview
+candidate limited to the Synthetic Demo, container operation, and bounded
+anonymous access. There is no new Preview tag, release, or public HTTPS
+deployment yet.
+
 ## Quick Demo
 
 Build the Workspace once, then launch the complete offline product with one

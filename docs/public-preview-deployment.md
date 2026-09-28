@@ -3,6 +3,10 @@
 Phase 8A.1 defines a bounded, single-instance deployment for the synthetic
 QuantOS Demo. It is a product preview, not a production financial-data service.
 
+Repository status: this implementation is present on the unreleased
+`public-sync/phase-8a2-1` candidate branch. The current public release remains
+`v0.3.1`; no public HTTPS service, Preview tag, or Preview release exists yet.
+
 ## Modes
 
 QuantOS keeps data mode and deployment mode separate:

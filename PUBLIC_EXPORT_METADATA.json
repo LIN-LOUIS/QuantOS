@@ -1,8 +1,15 @@
 {
-  "distribution": "PUBLIC_PRODUCT",
+  "acceptance_manifest": {
+    "path": "PUBLIC_EXPORT_ACCEPTANCE.json",
+    "schema_version": "quantos-clean-room-acceptance-v1"
+  },
+  "clean_room": "PASS",
+  "distribution": "PUBLIC_PREVIEW_CANDIDATE",
+  "frontend_test_count": 30,
   "project_version": "0.3.1",
-  "public_history_policy": "preserve-existing-public-history",
+  "public_history_policy": "content-only-export-preserve-public-history-no-private-ancestry",
   "public_parent_commit": "3dfd8289578b23ac3135db5f86f00cf6ac2b886e",
-  "schema_version": "quantos-public-export-v2",
-  "source_snapshot": "phase-8a2-clean-room-candidate"
+  "python_test_count": 1608,
+  "release_snapshot_id": "public-snapshot-sha256:ffd08f2038e47a4fa11b06f36fe2e1ed82f280031deb664867048a1e49f32272",
+  "schema_version": "quantos-public-export-v3"
 }

@@ -14,6 +14,10 @@ QuantOS 不是股票预测器，不是自动交易系统，也不提供收益保
 
 当前维护版本为 **v0.3.1**，支持 Python 3.10、3.11 和 3.12。
 
+`public-sync/phase-8a2-1` 分支包含尚未发布的 Public Preview 候选：仅提供
+Synthetic Demo、容器化运行与受限匿名访问。当前没有新的 Preview tag 或 Release，
+也没有公网 HTTPS 部署。
+
 ## 30 秒体验
 
 完成一次 Workspace 构建后，一条命令即可启动完整的离线演示：

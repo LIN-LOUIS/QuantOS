@@ -8,6 +8,7 @@ CHANGELOG.md
 CONTRIBUTING.md
 Dockerfile
 LICENSE
+PUBLIC_EXPORT_ACCEPTANCE.json
 PUBLIC_EXPORT_METADATA.json
 PUBLIC_LICENSE_DECISION.md
 PUBLIC_REPOSITORY_METADATA.md
@@ -22,12 +23,15 @@ docs/concepts.zh-CN.md
 docs/demo-script.md
 docs/growth-handoff-v0.3.0.md
 docs/phase-8a2-clean-room-acceptance.md
+docs/product/PRODUCT_STATUS_2026-09.md
+docs/product/PUBLIC_PREVIEW_ROADMAP.md
 docs/public-preview-deployment.md
 docs/quantos-ask.md
 docs/quickstart.md
 docs/quickstart.zh-CN.md
 docs/release-v0.3.0.md
 docs/release-v0.3.1.md
+docs/reports/PHASE_8A_1_RND_REPORT.md
 docs/screenshots/v0.3.0-analytics-provenance.jpg
 docs/screenshots/v0.3.0-ask-trace.jpg
 docs/screenshots/v0.3.0-overview.jpg
