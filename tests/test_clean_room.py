@@ -10,7 +10,7 @@ import pytest
 
 from quantos.clean_room import (
     AcceptanceError, Gate, create_tracked_snapshot, make_manifest, require_pass,
-    run_checked, runtime_artifact_candidates, secret_candidates, snapshot_identifier,
+    parse_frontend_count, run_checked, runtime_artifact_candidates, secret_candidates, snapshot_identifier,
     stage_public_export, validate_required_files,
     validate_container_inventory, validate_version_consistency,
 )
@@ -159,6 +159,13 @@ def test_failed_external_gate_is_nonzero_and_actionable(tmp_path):
     assert caught.value.stage == "DOCKER_BUILD"
     assert "status 7" in caught.value.reason
     assert caught.value.remediation == "Start Docker and rebuild."
+
+
+def test_frontend_count_accepts_github_actions_ansi_output():
+    output = "\x1b[2m Test Files \x1b[22m \x1b[1m4 passed\x1b[22m\n" \
+             "\x1b[2m      Tests \x1b[22m \x1b[1m30 passed\x1b[22m\n"
+
+    assert parse_frontend_count(output) == 30
 
 
 def test_container_inventory_rejects_runtime_data_and_credential_keys():

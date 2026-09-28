@@ -44,6 +44,7 @@ _SECRET_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 class AcceptanceError(RuntimeError):
@@ -272,9 +273,10 @@ def parse_pytest_count(output: str) -> int:
 
 
 def parse_frontend_count(output: str) -> int:
-    matches = re.findall(r"Tests\s+(\d+) passed", output)
+    plain_output = _ANSI_ESCAPE.sub("", output)
+    matches = re.findall(r"Tests\s+(\d+) passed", plain_output)
     if not matches:
-        matches = re.findall(r"(?:^|\s)(\d+) passed", output)
+        matches = re.findall(r"(?:^|\s)(\d+) passed", plain_output)
     if not matches:
         raise AcceptanceError("FRONTEND_TESTS", "frontend pass count was not found",
                               "Inspect the frontend test log and rerun the gate.")
