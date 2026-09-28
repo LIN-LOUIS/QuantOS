@@ -7,11 +7,13 @@ import { Drawer } from "../components/Drawer";
 import { ReasonCodes } from "../components/ReasonCodes";
 import { StatusBadge } from "../components/StatusBadge";
 import { PageHeading, SectionTitle } from "./OverviewPage";
+import { useI18n } from "../i18n";
 
 export function AskPage() {
   const api = useApi();
+  const { t } = useI18n();
   const [symbol, setSymbol] = useState("600519.SH");
-  const [question, setQuestion] = useState("最近一个交易日表现怎么样？");
+  const [question, setQuestion] = useState(() => t("ask.example1"));
   const [noResearch, setNoResearch] = useState(true);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [trace, setTrace] = useState<AskTrace | null>(null);
@@ -29,21 +31,23 @@ export function AskPage() {
     setTraceOpen(true); setTrace(null);
     try { setTrace(await api.trace(result.trace_id)); } catch (value) { setError(value); setTraceOpen(false); }
   };
-  return <div className="page"><PageHeading kicker="GROUNDED ASK" title="Ask, then inspect why" description="Answers are separated into facts, references, limitations, and execution lineage." />
+  const examples = [t("ask.example1"), t("ask.example2"), t("ask.example3")];
+  return <div className="page"><PageHeading kicker={t("ask.kicker")} title={t("ask.title")} description={t("ask.description")} />
+    <section className="ask-examples" aria-label={t("ask.examples")}><strong>{t("ask.examples")}</strong><div>{examples.map((example) => <button type="button" className="example-chip" key={example} onClick={() => setQuestion(example)}>{example}</button>)}</div></section>
     <form className="ask-form panel" onSubmit={submit}>
-      <label>Security<input value={symbol} onChange={(event) => setSymbol(event.target.value)} pattern="[0-9]{6}\.(SH|SZ|BJ)" required /></label>
-      <label className="question-field">Research question<textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={1000} required /></label>
-      <label className="checkbox"><input type="checkbox" checked={noResearch} onChange={(event) => setNoResearch(event.target.checked)} />Market-only offline context</label>
-      <button className="button-primary" type="submit" disabled={loading}>{loading ? "Building grounded answer…" : "Ask QuantOS"}</button>
+      <label>{t("ask.security")}<input value={symbol} onChange={(event) => setSymbol(event.target.value)} pattern="[0-9]{6}\.(SH|SZ|BJ)" required /></label>
+      <label className="question-field">{t("ask.question")}<textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={1000} required /></label>
+      <label className="checkbox"><input type="checkbox" checked={noResearch} onChange={(event) => setNoResearch(event.target.checked)} />{t("ask.offline")}</label>
+      <button className="button-primary" type="submit" disabled={loading}>{loading ? t("ask.loading") : t("ask.submit")}</button>
     </form>
     {error !== null && <ErrorNotice error={error} />}
     {result && <article className="result-stack">
-      <section className="panel answer-panel"><div className="result-header"><div><span className="eyebrow">ANSWER · {result.intent}</span><h2>{result.entities[0]?.canonical_id as string ?? symbol}</h2></div><StatusBadge status={result.status} /></div><p className="answer-copy">{result.answer}</p><div className="result-actions"><button className="button-secondary" type="button" onClick={showTrace}>Why this answer?</button><code className="hash">TRACE {result.trace_id}</code></div></section>
-      <div className="two-column"><section className="panel"><SectionTitle title="Facts" subtitle={`Cutoff ${result.as_of_time}`} />{result.facts.length ? <DataTable rows={result.facts} /> : <p className="empty-copy">No validated facts were returned.</p>}</section>
-        <section className="panel"><SectionTitle title="Availability & limitations" />{result.limitations.length ? <ul className="limitations">{result.limitations.map((item) => <li key={item}>{item}</li>)}</ul> : <p className="ready-copy">No additional limitations reported.</p>}<ReasonCodes codes={result.reason_codes} /></section></div>
-      <section className="panel"><SectionTitle title="Grounding references" subtitle="Typed references are audit links, not generic footnotes." />{result.references.length ? <div className="reference-list">{result.references.map((ref) => <span key={ref}>{referenceKind(ref)} · <code>{ref}</code></span>)}</div> : <p className="empty-copy">No research references. The answer is limited to structured facts.</p>}</section>
+      <section className="panel answer-panel"><div className="result-header"><div><span className="eyebrow">ANSWER · {result.intent}</span><h2>{result.entities[0]?.canonical_id as string ?? symbol}</h2></div><StatusBadge status={result.status} /></div><p className="answer-copy">{result.answer}</p><div className="result-actions"><button className="button-secondary" type="button" onClick={showTrace}>{t("ask.why")}</button><code className="hash">TRACE {result.trace_id}</code></div></section>
+      <div className="two-column"><section className="panel"><SectionTitle title={t("ask.facts")} subtitle={`Cutoff ${result.as_of_time}`} />{result.facts.length ? <DataTable rows={result.facts} /> : <p className="empty-copy">No validated facts were returned.</p>}</section>
+        <section className="panel"><SectionTitle title={t("ask.availability")} />{result.limitations.length ? <ul className="limitations">{result.limitations.map((item) => <li key={item}>{item}</li>)}</ul> : <p className="ready-copy">No additional limitations reported.</p>}<ReasonCodes codes={result.reason_codes} /></section></div>
+      <section className="panel"><SectionTitle title={t("ask.references")} subtitle="Typed references are audit links, not generic footnotes." />{result.references.length ? <div className="reference-list">{result.references.map((ref) => <span key={ref}>{referenceKind(ref)} · <code>{ref}</code></span>)}</div> : <p className="empty-copy">No research references. The answer is limited to structured facts.</p>}</section>
     </article>}
-    <Drawer title="Why this answer?" open={traceOpen} onClose={() => setTraceOpen(false)}>{trace ? <TraceDetail trace={trace} /> : <div className="state-panel" role="status">Loading persisted trace…</div>}</Drawer>
+    <Drawer title={t("ask.why")} open={traceOpen} onClose={() => setTraceOpen(false)}>{trace ? <><span className="eyebrow">{t("ask.traceTitle")}</span><TraceDetail trace={trace} /></> : <div className="state-panel" role="status">Loading persisted trace…</div>}</Drawer>
   </div>;
 }
 

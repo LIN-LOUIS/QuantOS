@@ -1,18 +1,11 @@
-const explanations: Record<string, string> = {
-  ATTRIBUTION_INSUFFICIENT: "Causal explanation unavailable: current evidence does not meet attribution policy.",
-  EVIDENCE_UNAVAILABLE: "Evidence history is unavailable for this boundary.",
-  KNOWLEDGE_TEMPORAL_UNVERIFIED: "Knowledge has no verified historical availability time.",
-  REPORT_NOT_VISIBLE: "No report is visible at the selected cutoff.",
-  MARKET_DATA_UNAVAILABLE: "Persisted market data is unavailable.",
-  NO_DATA: "The dataset is available, but no records matched.",
-  OK: "The requested grounded result is available.",
-};
+import { useI18n } from "../i18n";
 
 export function ReasonCodes({ codes }: { codes: string[] }) {
+  const { t } = useI18n();
   if (!codes.length) return null;
   return <div className="reason-list" aria-label="Reason codes">
     {codes.map((code) => <div className="reason-item" key={code}>
-      <code>{code}</code><span>{explanations[code] ?? "QuantOS returned this deterministic reason code."}</span>
+      <code>{code}</code><span>{t(`reason.${code}`) === `reason.${code}` ? t("reason.default") : t(`reason.${code}`)}</span>
     </div>)}
   </div>;
 }

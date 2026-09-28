@@ -34,9 +34,12 @@ class ResourceConflict(RuntimeError):
 
 
 class ResearchResources:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self, settings: Settings,
+        *, trace_repository: AskTraceRepository | None = None,
+    ) -> None:
         self.settings = settings
-        self.traces = AskTraceRepository(settings=settings)
+        self.traces = trace_repository or AskTraceRepository(settings=settings)
         self.reports = DailyReportRepository(settings, read_only=True)
         self.replays = ReplayCampaignRepository(settings)
 

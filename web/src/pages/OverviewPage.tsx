@@ -4,30 +4,33 @@ import { AsyncPanel } from "../components/AsyncPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import type { AvailabilityState, HealthResponse } from "../api/types";
 import type { AsyncState } from "../hooks/useAsync";
+import { Link } from "react-router-dom";
+import { statusHelpKey, useI18n } from "../i18n";
 
 export function OverviewPage({ health }: { health: AsyncState<HealthResponse> }) {
   const api = useApi();
+  const { t } = useI18n();
   const status = useAsync(() => api.status(), [api]);
-  if (health.error) return <div className="page"><PageHeading kicker="SYSTEM VIEW" title="Research readiness, without false certainty" description="See what QuantOS can support now, what is partial, and what remains unavailable before starting analysis." />
-    <div className="state-panel state-error">Research context will load after the API reconnects.</div>
+  if (health.error) return <div className="page"><PageHeading kicker={t("overview.kicker")} title={t("overview.title")} description={t("overview.description")} />
+    <div className="state-panel state-error">{t("runtime.retryHint")}</div>
   </div>;
-  return <div className="page"><PageHeading kicker="SYSTEM VIEW" title="Research readiness, without false certainty" description="See what QuantOS can support now, what is partial, and what remains unavailable before starting analysis." />
+  return <div className="page"><PageHeading kicker={t("overview.kicker")} title={t("overview.title")} description={t("overview.description")} />
+    <div className="overview-actions"><Link className="button-primary" to="/ask">{t("overview.start")}</Link><Link className="button-secondary" to="/reports">{t("overview.report")}</Link></div>
     <AsyncPanel loading={health.loading || status.loading} error={status.error} onRetry={status.reload}>
       {health.data && status.data && <>
-        <section className="overview-hero panel"><div><span className="eyebrow">PROCESS HEALTH</span><h2>{health.data.service}</h2><p>Versioned {health.data.api_version} process is responding on the local research boundary.</p></div><StatusBadge status="READY" /></section>
-        <section className="first-use panel"><div><span className="eyebrow">START A RESEARCH FLOW</span><h2>Observe, ask, analyze, then inspect provenance.</h2><p>Use Ask for grounded facts, Analytics for bounded metrics, and Replay to inspect historical semantics.</p></div><div><a className="button-secondary" href="/ask">Start with Ask</a><a className="button-secondary" href="/analytics">Explore Analytics</a><a className="button-secondary" href="/replay">Inspect Replay</a></div></section>
-        <section><SectionTitle title="Capability availability" subtitle="Exact backend states are preserved." />
+        <section className="overview-hero panel"><div><span className="eyebrow">{t("overview.health")}</span><h2>{health.data.service}</h2><p>{t("overview.healthDetail", { version: health.data.api_version })}</p></div><StatusBadge status="READY" /></section>
+        <section><SectionTitle title={t("overview.capabilities")} subtitle={t("overview.capabilitySubtitle")} />
           <div className="availability-grid">
             {Object.entries(status.data.research_availability).map(([name, value]) => <AvailabilityCard key={name} name={name} status={value} />)}
             {availabilityEntries(status.data.data_availability).map(([name, value]) => <AvailabilityCard key={name} name={name} status={value} />)}
             <AvailabilityCard name="historical replay" status={status.data.replay_availability.status} detail={status.data.replay_availability.reason_code ?? undefined} />
           </div>
         </section>
-        <section><SectionTitle title="Provider boundary" subtitle="Only configuration and health metadata are exposed." />
+        <details className="technical-status panel"><summary><strong>{t("overview.technical")}</strong><span>{t("overview.technicalHint")}</span></summary>
           <div className="provider-list">{status.data.providers.length ? status.data.providers.map((provider) => <article className="provider-row" key={provider.provider_id}>
             <div><strong>{provider.provider_id}</strong><span>{provider.provider_type ?? "provider"}</span></div><StatusBadge status={provider.availability} />
-          </article>) : <div className="state-panel state-empty">No provider health records are exposed.</div>}</div>
-        </section>
+          </article>) : <div className="state-panel state-empty">{t("overview.noProviders")}</div>}</div>
+        </details>
       </>}
     </AsyncPanel>
   </div>;
@@ -48,7 +51,21 @@ function availabilityEntries(value: Record<string, unknown>): Array<[string, Ava
 }
 
 function AvailabilityCard({ name, status, detail }: { name: string; status: AvailabilityState; detail?: string }) {
-  return <article className="availability-card"><div className="availability-heading"><span>{name.replaceAll("_", " ")}</span><StatusBadge status={status} /></div>{detail && <small>{detail}</small>}</article>;
+  const { locale, t } = useI18n();
+  const normalized = status.toUpperCase();
+  const explanation = name.toLowerCase().includes("evidence") && normalized === "UNAVAILABLE" ? t("cap.evidenceUnavailable") : t(statusHelpKey(normalized));
+  return <article className="availability-card"><div className="availability-heading"><span>{humanCapability(name, locale)}</span><StatusBadge status={status} /></div>{detail && <small><code>{detail}</code></small>}
+    {normalized !== "READY" && normalized !== "PASS" && <details className="capability-explanation"><summary>{t("overview.why")}</summary><p>{explanation}</p></details>}
+  </article>;
+}
+
+function humanCapability(name: string, locale: "zh-CN" | "en-US"): string {
+  const key = name.toLowerCase().replaceAll(" ", "_");
+  const labels: Record<string, [string, string]> = {
+    market: ["Market data", "市场数据"], market_data: ["Market data", "市场数据"], security_master: ["Security Master", "证券主数据"], ask: ["Research Ask", "研究提问"],
+    evidence: ["External evidence", "外部证据"], attribution: ["Attribution", "归因"], knowledge: ["Knowledge", "知识库"], reports: ["Reports", "研究报告"], report: ["Reports", "研究报告"], historical_market: ["Historical market", "历史行情"], historical_replay: ["Historical replay", "历史回放"],
+  };
+  return labels[key]?.[locale === "zh-CN" ? 1 : 0] ?? name.replaceAll("_", " ");
 }
 
 export function PageHeading({ kicker, title, description }: { kicker: string; title: string; description: string }) {

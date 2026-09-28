@@ -164,6 +164,27 @@ API 默认只监听 `127.0.0.1`，不提供任意 SQL、Python、Shell、表名�
 访问。Workspace 只通过版本化 Research API 获取数据，不直接访问文件系统或
 DuckDB。
 
+## 公网 Preview 容器
+
+公网 Preview 只提供明确标记的离线 Demo，不会接入真实 Provider。它与本地默认
+模式分离；本地命令仍只绑定 loopback。镜像构建过程会执行 `npm ci` 和
+`npm run build`，无需提交 `web/dist`：
+
+```bash
+scripts/preview-build.sh
+scripts/preview-up.sh
+scripts/preview-status.sh
+```
+
+使用 `scripts/preview-logs.sh --follow` 查看日志，使用
+`scripts/preview-down.sh` 停止。默认只绑定 `127.0.0.1:8080`；只有显式执行
+`scripts/preview-up.sh --lan` 才会向局域网开放，并打印风险提示与可分享地址。构建
+脚本自动注入 `--build-arg QUANTOS_BUILD_COMMIT="$(git rev-parse HEAD)"`。
+
+公网模式关闭 `/docs`、`/redoc` 与 `/openapi.json`，对请求体、并发、超时和 Ask
+频率设置进程内上限，并把 AskTrace 限制在临时 Demo workspace 中。完整边界与
+默认值见[公网 Preview 部署说明](docs/public-preview-deployment.md)。
+
 ## 安全边界
 
 - 不执行真实金融交易；

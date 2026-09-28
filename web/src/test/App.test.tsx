@@ -11,7 +11,7 @@ function renderAt(path: string, api = fakeApi()) { return { api, ...render(<Memo
 describe("QuantOS workspace", () => {
   it("renders the five-page research shell and navigates by keyboard", async () => {
     renderAt("/");
-    expect(await screen.findByRole("heading", { name: /Research readiness/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Auditable AI Financial Research Workspace/ })).toBeInTheDocument();
     const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
     const analytics = within(navigation).getByRole("link", { name: /Analytics/ });
     analytics.focus(); await userEvent.keyboard("{Enter}");
@@ -30,7 +30,7 @@ describe("QuantOS workspace", () => {
   it("labels Demo data and exposes auditable runtime identity", async () => {
     const api = fakeApi({ health: vi.fn().mockResolvedValue({
       status: "ok", service: "quantos-research-api", api_version: "v1",
-      runtime_mode: "DEMO", data_label: "SYNTHETIC_FIXTURE",
+      runtime_mode: "DEMO", deployment_mode: "public_preview", data_label: "SYNTHETIC_FIXTURE",
       quantos_version: "0.3.1", build_commit: "demo123",
     }) });
     renderAt("/", api);
@@ -44,7 +44,7 @@ describe("QuantOS workspace", () => {
   it("shows an actionable API disconnect state and retries", async () => {
     const health = vi.fn()
       .mockRejectedValueOnce(new TypeError("fetch failed"))
-      .mockResolvedValue({ status: "ok", service: "quantos-research-api", api_version: "v1", runtime_mode: "LOCAL", data_label: "LOCAL_PERSISTED_DATA", quantos_version: "0.3.1", build_commit: "fixture" });
+      .mockResolvedValue({ status: "ok", service: "quantos-research-api", api_version: "v1", runtime_mode: "LOCAL", deployment_mode: "local", data_label: "LOCAL_PERSISTED_DATA", quantos_version: "0.3.1", build_commit: "fixture" });
     renderAt("/", fakeApi({ health }));
 
     expect(await screen.findByText("QuantOS Research API is unavailable.")).toBeInTheDocument();
