@@ -6,21 +6,23 @@ import { DataTable, formatValue } from "../components/DataTable";
 import { Drawer } from "../components/Drawer";
 import type { ReportDetail } from "../api/types";
 import { PageHeading, SectionTitle } from "./OverviewPage";
+import { useI18n } from "../i18n";
 
 export function ReportsPage() {
   const api = useApi();
+  const { t } = useI18n();
   const [date, setDate] = useState(""); const [symbol, setSymbol] = useState("");
   const [filters, setFilters] = useState({ date: "", symbol: "" });
   const [offset, setOffset] = useState(0); const limit = 20;
   const reports = useAsync(() => api.reports({ ...filters, limit, offset }), [api, filters.date, filters.symbol, offset]);
   const [detail, setDetail] = useState<ReportDetail | null>(null); const [open, setOpen] = useState(false); const [detailError, setDetailError] = useState<unknown>(null);
   const inspect = async (id: string) => { setOpen(true); setDetail(null); setDetailError(null); try { setDetail(await api.report(id)); } catch (error) { setDetailError(error); } };
-  return <div className="page"><PageHeading kicker="REPORT ARCHIVE" title="Generated research, read in context" description="Browse existing report artifacts. Opening this page never generates or refreshes a report." />
-    <form className="filter-bar panel" onSubmit={(event) => { event.preventDefault(); setOffset(0); setFilters({ date, symbol }); }}><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Security<input placeholder="600519.SH" value={symbol} onChange={(event) => setSymbol(event.target.value)} /></label><button type="submit" className="button-secondary">Apply filters</button></form>
+  return <div className="page"><PageHeading kicker={t("reports.kicker")} title={t("reports.title")} description={t("reports.description")} />
+    <form className="filter-bar panel" onSubmit={(event) => { event.preventDefault(); setOffset(0); setFilters({ date, symbol }); }}><label>{t("reports.date")}<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>{t("reports.security")}<input placeholder="600519.SH" value={symbol} onChange={(event) => setSymbol(event.target.value)} /></label><button type="submit" className="button-secondary">{t("reports.apply")}</button></form>
     <AsyncPanel loading={reports.loading} error={reports.error} isEmpty={reports.data?.items.length === 0} empty={<><strong>No report available</strong><p>No persisted report matches these bounded filters.</p></>}>
-      {reports.data && <section className="panel"><SectionTitle title="Daily intelligence reports" subtitle={`${reports.data.pagination.total} persisted artifact(s)`} /><div className="report-list">{reports.data.items.map((item) => <button type="button" className="report-row" key={item.report_id} onClick={() => inspect(item.report_id)}><div><strong>{item.trade_date}</strong><span>{item.type} · {item.mode}</span></div><div><span>{new Date(item.generated_at).toLocaleString()}</span><code>{item.report_id.slice(0, 10)}</code></div></button>)}</div><Pagination offset={offset} limit={limit} total={reports.data.pagination.total} onChange={setOffset} /></section>}
+      {reports.data && <section className="panel"><SectionTitle title={t("reports.list")} subtitle={`${reports.data.pagination.total} persisted artifact(s)`} /><div className="report-list">{reports.data.items.map((item) => <button type="button" className="report-row" key={item.report_id} onClick={() => inspect(item.report_id)}><div><strong>{item.trade_date}</strong><span>{item.type} · {item.mode}</span></div><div><span>{new Date(item.generated_at).toLocaleString()}</span><code>{item.report_id.slice(0, 10)}</code></div></button>)}</div><Pagination offset={offset} limit={limit} total={reports.data.pagination.total} onChange={setOffset} /></section>}
     </AsyncPanel>
-    <Drawer title="Report detail" open={open} onClose={() => setOpen(false)}>{detailError ? <ErrorNotice error={detailError} /> : detail ? <ReportView report={detail} /> : <div className="state-panel">Loading report…</div>}</Drawer>
+    <Drawer title={t("reports.detail")} open={open} onClose={() => setOpen(false)}>{detailError ? <ErrorNotice error={detailError} /> : detail ? <ReportView report={detail} /> : <div className="state-panel">Loading report…</div>}</Drawer>
   </div>;
 }
 

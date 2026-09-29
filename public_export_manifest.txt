@@ -1,11 +1,17 @@
-# QuantOS public export manifest v2
-# Audited v0.3.1 maintenance snapshot on preserved public history.
+# QuantOS public export manifest v3
+# Exact allowlisted surface for the unreleased Public Preview candidate.
+# Acceptance and metadata files are attestations, not payload-digest inputs.
+
+.dockerignore
 .github/workflows/tests.yml
 .gitignore
 CHANGELOG.md
 CONTRIBUTING.md
+Dockerfile
 LICENSE
+PUBLIC_EXPORT_ACCEPTANCE.json
 PUBLIC_EXPORT_METADATA.json
+PUBLIC_SOURCE_ACCEPTANCE.json
 PUBLIC_LICENSE_DECISION.md
 PUBLIC_REPOSITORY_METADATA.md
 README.en.md
@@ -18,11 +24,16 @@ docs/concepts.md
 docs/concepts.zh-CN.md
 docs/demo-script.md
 docs/growth-handoff-v0.3.0.md
+docs/phase-8a2-clean-room-acceptance.md
+docs/product/PRODUCT_STATUS_2026-09.md
+docs/product/PUBLIC_PREVIEW_ROADMAP.md
+docs/public-preview-deployment.md
 docs/quantos-ask.md
 docs/quickstart.md
 docs/quickstart.zh-CN.md
 docs/release-v0.3.0.md
 docs/release-v0.3.1.md
+docs/reports/PHASE_8A_1_RND_REPORT.md
 docs/screenshots/v0.3.0-analytics-provenance.jpg
 docs/screenshots/v0.3.0-ask-trace.jpg
 docs/screenshots/v0.3.0-overview.jpg
@@ -38,6 +49,7 @@ ops/systemd/quantos-scheduler.service
 ops/systemd/quantos-scheduler.timer
 public_export_manifest.txt
 pyproject.toml
+scripts/accept_release_candidate.py
 scripts/benchmark_deepseek_low_reasoning.py
 scripts/benchmark_deepseek_reasoning.py
 scripts/benchmark_web_evidence.py
@@ -46,6 +58,11 @@ scripts/calibrate_web_evidence.py
 scripts/evaluate_v1.py
 scripts/generate_daily_report.py
 scripts/generate_time_slice_report.py
+scripts/preview-build.sh
+scripts/preview-down.sh
+scripts/preview-logs.sh
+scripts/preview-status.sh
+scripts/preview-up.sh
 scripts/probe_deepseek_full_schema.py
 scripts/run_quantos.py
 scripts/run_scheduler_once.py
@@ -59,6 +76,7 @@ src/quantos/anomalies.py
 src/quantos/api/__init__.py
 src/quantos/api/app.py
 src/quantos/api/models.py
+src/quantos/api/protection.py
 src/quantos/api/resources.py
 src/quantos/ask/__init__.py
 src/quantos/ask/adapters.py
@@ -69,6 +87,7 @@ src/quantos/ask/registry.py
 src/quantos/ask/service.py
 src/quantos/backfill.py
 src/quantos/calibration.py
+src/quantos/clean_room.py
 src/quantos/cli.py
 src/quantos/collectors/__init__.py
 src/quantos/collectors/baostock.py
@@ -223,6 +242,7 @@ tests/test_ask_capability_wiring.py
 tests/test_backfill.py
 tests/test_calibration.py
 tests/test_canonical_ask.py
+tests/test_clean_room.py
 tests/test_cli.py
 tests/test_config.py
 tests/test_data_bootstrap.py
@@ -245,7 +265,9 @@ tests/test_knowledge_storage.py
 tests/test_moneyflow_backfill.py
 tests/test_news.py
 tests/test_orchestration.py
+tests/test_preview_operator_scripts.py
 tests/test_product_start.py
+tests/test_public_preview.py
 tests/test_qa.py
 tests/test_release_version.py
 tests/test_replay_cli.py
@@ -287,9 +309,12 @@ web/src/charts/ChartRenderer.tsx
 web/src/components/AsyncPanel.tsx
 web/src/components/DataTable.tsx
 web/src/components/Drawer.tsx
+web/src/components/FeedbackPanel.tsx
+web/src/components/FirstRunGuide.tsx
 web/src/components/ReasonCodes.tsx
 web/src/components/StatusBadge.tsx
 web/src/hooks/useAsync.ts
+web/src/i18n/index.tsx
 web/src/main.tsx
 web/src/pages/AnalyticsPage.tsx
 web/src/pages/AskPage.tsx
@@ -298,6 +323,7 @@ web/src/pages/ReplayPage.tsx
 web/src/pages/ReportsPage.tsx
 web/src/styles.css
 web/src/test/App.test.tsx
+web/src/test/ProductUx.test.tsx
 web/src/test/contracts.test.ts
 web/src/test/fixtures.ts
 web/src/test/setup.ts

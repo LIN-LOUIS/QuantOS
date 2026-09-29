@@ -14,6 +14,10 @@ QuantOS 不是股票预测器，不是自动交易系统，也不提供收益保
 
 当前维护版本为 **v0.3.1**，支持 Python 3.10、3.11 和 3.12。
 
+`public-sync/phase-8a2-1` 分支包含尚未发布的 Public Preview 候选：仅提供
+Synthetic Demo、容器化运行与受限匿名访问。当前没有新的 Preview tag 或 Release，
+也没有公网 HTTPS 部署。
+
 ## 30 秒体验
 
 完成一次 Workspace 构建后，一条命令即可启动完整的离线演示：
@@ -163,6 +167,27 @@ curl -s http://127.0.0.1:8000/v1/status
 API 默认只监听 `127.0.0.1`，不提供任意 SQL、Python、Shell、表名或 Provider
 访问。Workspace 只通过版本化 Research API 获取数据，不直接访问文件系统或
 DuckDB。
+
+## 公网 Preview 容器
+
+公网 Preview 只提供明确标记的离线 Demo，不会接入真实 Provider。它与本地默认
+模式分离；本地命令仍只绑定 loopback。镜像构建过程会执行 `npm ci` 和
+`npm run build`，无需提交 `web/dist`：
+
+```bash
+scripts/preview-build.sh
+scripts/preview-up.sh
+scripts/preview-status.sh
+```
+
+使用 `scripts/preview-logs.sh --follow` 查看日志，使用
+`scripts/preview-down.sh` 停止。默认只绑定 `127.0.0.1:8080`；只有显式执行
+`scripts/preview-up.sh --lan` 才会向局域网开放，并打印风险提示与可分享地址。构建
+脚本自动注入 `--build-arg QUANTOS_BUILD_COMMIT="$(git rev-parse HEAD)"`。
+
+公网模式关闭 `/docs`、`/redoc` 与 `/openapi.json`，对请求体、并发、超时和 Ask
+频率设置进程内上限，并把 AskTrace 限制在临时 Demo workspace 中。完整边界与
+默认值见[公网 Preview 部署说明](docs/public-preview-deployment.md)。
 
 ## 安全边界
 

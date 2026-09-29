@@ -9,9 +9,11 @@ import { Drawer } from "../components/Drawer";
 import { ReasonCodes } from "../components/ReasonCodes";
 import { StatusBadge } from "../components/StatusBadge";
 import { PageHeading, SectionTitle } from "./OverviewPage";
+import { useI18n } from "../i18n";
 
 export function AnalyticsPage() {
   const api = useApi();
+  const { t } = useI18n();
   const registry = useAsync(() => api.analyticsSchema(), [api]);
   const [metric, setMetric] = useState("close");
   const [dimension, setDimension] = useState("trading_date");
@@ -30,29 +32,30 @@ export function AnalyticsPage() {
     try { setResult(await api.analyticsQuery(query)); } catch (value) { setError(value); }
     finally { setLoading(false); }
   };
-  return <div className="page"><PageHeading kicker="SEMANTIC ANALYTICS" title="Numbers with provenance" description="Build a bounded query from registered metrics and dimensions. There is no SQL surface." />
+  return <div className="page"><PageHeading kicker={t("analytics.kicker")} title={t("analytics.title")} description={t("analytics.description")} />
     <AsyncPanel loading={registry.loading} error={registry.error}>{registry.data && <form className="query-builder panel" onSubmit={submit}>
-      <label>Metric<select value={metric} onChange={(event) => setMetric(event.target.value)}>{registry.data.metrics.map((item) => <option key={item.metric_id} value={item.metric_id}>{item.display_name} · {item.metric_id}</option>)}</select></label>
-      <label>Dimension<select value={dimension} onChange={(event) => setDimension(event.target.value)}>{registry.data.dimensions.map((item) => <option key={item.dimension_id} value={item.dimension_id}>{item.display_name} · {item.dimension_id}</option>)}</select></label>
-      <label>Security<input value={symbol} onChange={(event) => setSymbol(event.target.value)} required /></label>
-      <label>Start date<input type="date" value={start} onChange={(event) => setStart(event.target.value)} required /></label>
-      <label>End date<input type="date" value={end} onChange={(event) => setEnd(event.target.value)} required /></label>
-      <label>Sort direction<select value={direction} onChange={(event) => setDirection(event.target.value as "ASC" | "DESC")}><option value="ASC">Ascending</option><option value="DESC">Descending</option></select></label>
-      <label>Row limit<input type="number" min="1" max={registry.data.query_limits.max_rows} value={limit} onChange={(event) => setLimit(Number(event.target.value))} /></label>
-      <button className="button-primary" type="submit" disabled={loading}>{loading ? "Running bounded query…" : "Run analytics"}</button>
+      <label>{t("analytics.metric")}<select value={metric} onChange={(event) => setMetric(event.target.value)}>{registry.data.metrics.map((item) => <option key={item.metric_id} value={item.metric_id}>{item.display_name} · {item.metric_id}</option>)}</select></label>
+      <label>{t("analytics.dimension")}<select value={dimension} onChange={(event) => setDimension(event.target.value)}>{registry.data.dimensions.map((item) => <option key={item.dimension_id} value={item.dimension_id}>{item.display_name} · {item.dimension_id}</option>)}</select></label>
+      <label>{t("analytics.security")}<input value={symbol} onChange={(event) => setSymbol(event.target.value)} required /></label>
+      <label>{t("analytics.start")}<input type="date" value={start} onChange={(event) => setStart(event.target.value)} required /></label>
+      <label>{t("analytics.end")}<input type="date" value={end} onChange={(event) => setEnd(event.target.value)} required /></label>
+      <label>{t("analytics.sort")}<select value={direction} onChange={(event) => setDirection(event.target.value as "ASC" | "DESC")}><option value="ASC">Ascending</option><option value="DESC">Descending</option></select></label>
+      <label>{t("analytics.limit")}<input type="number" min="1" max={registry.data.query_limits.max_rows} value={limit} onChange={(event) => setLimit(Number(event.target.value))} /></label>
+      <button className="button-primary" type="submit" disabled={loading}>{loading ? t("analytics.running") : t("analytics.run")}</button>
       <small className="form-note">Registry {registry.data.metric_registry_version} · max {registry.data.query_limits.max_rows} rows</small>
     </form>}</AsyncPanel>
     {error !== null && <ErrorNotice error={error} />}
     {result && <AnalyticsResult result={result} onProvenance={() => setProvenanceOpen(true)} />}
-    <Drawer title="Data provenance" open={provenanceOpen} onClose={() => setProvenanceOpen(false)}>{result && <Provenance result={result} />}</Drawer>
+    <Drawer title={t("analytics.provenance")} open={provenanceOpen} onClose={() => setProvenanceOpen(false)}>{result && <Provenance result={result} />}</Drawer>
   </div>;
 }
 
 function AnalyticsResult({ result, onProvenance }: { result: SemanticResult; onProvenance: () => void }) {
+  const { t } = useI18n();
   const availability = result.availability.market_data;
   const unavailable = availability?.status === "UNAVAILABLE" && availability.record_count === null;
   const empty = availability?.status === "READY" && availability.record_count === 0;
-  return <div className="result-stack"><section className="panel"><div className="result-header"><div><span className="eyebrow">SEMANTIC RESULT</span><h2>{result.insight.title}</h2></div><StatusBadge status={result.status} /></div><p>{result.insight.summary}</p><div className="result-actions"><button className="button-secondary" type="button" onClick={onProvenance}>Data provenance</button><code className="hash">PLAN {result.plan_hash.slice(0, 12)}</code></div></section>
+  return <div className="result-stack"><section className="panel"><div className="result-header"><div><span className="eyebrow">SEMANTIC RESULT</span><h2>{result.insight.title}</h2></div><StatusBadge status={result.status} /></div><p>{result.insight.summary}</p><div className="result-actions"><button className="button-secondary" type="button" onClick={onProvenance}>{t("analytics.provenance")}</button><code className="hash">PLAN {result.plan_hash.slice(0, 12)}</code></div></section>
     <section className="panel"><SectionTitle title="Availability" subtitle="Unknown coverage is never represented as a numeric zero." /><div className="availability-grid">{Object.entries(result.availability).map(([name, value]) => <article className="availability-card" key={name}><div className="availability-heading"><span>{name}</span><StatusBadge status={value.status} /></div><strong>{value.record_count === null ? "Coverage unknown" : `${value.record_count} matching records`}</strong>{value.reason_code && <code>{value.reason_code}</code>}</article>)}</div></section>
     {unavailable ? <section className="state-panel state-unavailable"><strong>Historical data unavailable</strong><p>{result.limitations.join(" ")}</p></section> : empty ? <section className="state-panel state-empty"><strong>0 matching records</strong><p>The dataset is available, but this query returned no rows.</p></section> : <>
       <section className="panel"><SectionTitle title="Chart" subtitle={`Rendered from backend ChartSpec · ${result.chart.chart_type}`} /><ChartRenderer spec={result.chart} rows={result.rows} /></section>

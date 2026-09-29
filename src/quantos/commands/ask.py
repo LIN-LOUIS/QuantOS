@@ -143,7 +143,8 @@ class AskSession:
 def make_session(symbol: str, as_of_time: datetime | None, *, live_cutoff: bool = False,
                  no_research: bool = False, offline: bool = False,
                  settings: Settings | None = None,
-                 clock: Callable[[], datetime] | None = None) -> AskSession:
+                 clock: Callable[[], datetime] | None = None,
+                 trace_repository: AskTraceRepository | None = None) -> AskSession:
     settings = settings or DEFAULT_SETTINGS
     security_repository = SecurityMasterRepository(settings)
     if offline:
@@ -162,7 +163,8 @@ def make_session(symbol: str, as_of_time: datetime | None, *, live_cutoff: bool 
                       research=research, llm=llm,
                       live_cutoff=live_cutoff, no_research=no_research,
                       local_capabilities=local,
-                      trace_repository=AskTraceRepository(settings=settings),
+                      trace_repository=(trace_repository
+                                        or AskTraceRepository(settings=settings)),
                       security_repository=security_repository,
                       market_repository=lambda: MarketDataRepository(
                           settings, read_only=offline,

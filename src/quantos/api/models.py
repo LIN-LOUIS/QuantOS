@@ -55,6 +55,7 @@ class HealthResponse(BaseModel):
     service: Literal["quantos-research-api"]
     api_version: Literal["v1"]
     runtime_mode: Literal["LOCAL", "DEMO"]
+    deployment_mode: Literal["local", "public_preview"]
     data_label: Literal["LOCAL_PERSISTED_DATA", "SYNTHETIC_FIXTURE"]
     quantos_version: str
     build_commit: str

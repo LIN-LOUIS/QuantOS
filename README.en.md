@@ -10,6 +10,11 @@ policy; language models may only explain validated structured context.
 The current maintenance release is **v0.3.1** and supports Python 3.10, 3.11,
 and 3.12.
 
+The `public-sync/phase-8a2-1` branch contains an unreleased Public Preview
+candidate limited to the Synthetic Demo, container operation, and bounded
+anonymous access. There is no new Preview tag, release, or public HTTPS
+deployment yet.
+
 ## Quick Demo
 
 Build the Workspace once, then launch the complete offline product with one
@@ -138,6 +143,31 @@ The server accepts loopback hosts only. API endpoints never bootstrap or
 refresh data and never call a provider. See the public
 [architecture](docs/architecture.md) for availability, provenance, and
 security boundaries.
+
+## Public Preview container
+
+The public preview serves only the clearly labeled offline Demo and never
+connects to real providers. Local commands remain loopback-only by default.
+The image builds `web/dist` with `npm ci` and `npm run build`; generated assets
+do not need to be committed:
+
+```bash
+scripts/preview-build.sh
+scripts/preview-up.sh
+scripts/preview-status.sh
+```
+
+Use `scripts/preview-logs.sh --follow` for logs and `scripts/preview-down.sh`
+to stop it. The default binding is `127.0.0.1:8080`; LAN sharing requires the
+explicit `scripts/preview-up.sh --lan` flag and prints a warning and shareable
+addresses. The build script injects
+`--build-arg QUANTOS_BUILD_COMMIT="$(git rev-parse HEAD)"`.
+
+Public preview mode closes `/docs`, `/redoc`, and `/openapi.json`; bounds
+request bodies, concurrency, execution time, and Ask rate; and retains
+AskTrace only in the temporary Demo workspace with count and age limits. See
+[Public Preview Deployment](docs/public-preview-deployment.md) for the exact
+defaults and boundary.
 
 ## Local Research Workspace
 

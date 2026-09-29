@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from decimal import Decimal
 import json
+import re
 import socket
 import subprocess
 import threading
@@ -34,6 +35,7 @@ from quantos.storage import (
     MarketDataRepository,
     SecurityMasterRepository,
 )
+from quantos.api.protection import DeploymentMode
 
 
 DEMO_NOW = datetime(2026, 9, 19, 12, tzinfo=MARKET_TIMEZONE)
@@ -134,7 +136,10 @@ def git_commit(project_root: Path) -> str:
             value = json.loads(
                 (Path(project_root) / "release-manifest.json").read_text(encoding="utf-8")
             ).get("git_commit")
-            if isinstance(value, str) and len(value) == 40:
+            if isinstance(value, str) and (
+                re.fullmatch(r"[0-9a-f]{40}", value)
+                or re.fullmatch(r"public-(?:snapshot|payload)-sha256:[0-9a-f]{64}", value)
+            ):
                 return value
         except (OSError, ValueError, TypeError):
             pass
@@ -146,8 +151,9 @@ def launch_product(
     port_explicit: bool, runtime_mode: RuntimeMode, open_browser: bool,
     build_commit: str | None = None,
     health_timeout: float = 10.0,
+    deployment_mode: DeploymentMode = DeploymentMode.LOCAL,
 ) -> int:
-    """Serve the API and built SPA in one local process until interrupted."""
+    """Serve the API and built SPA in one process until interrupted."""
 
     import uvicorn
     from quantos.api import create_app
@@ -158,13 +164,15 @@ def launch_product(
     app = create_app(
         settings=settings, runtime_mode=runtime_mode, workspace_dir=workspace_dir,
         build_commit=build_commit or git_commit(Path(settings.project_root)),
+        deployment_mode=deployment_mode,
     )
     server = uvicorn.Server(uvicorn.Config(
         app, host=host, port=selected, log_level="info", access_log=False,
     ))
     worker = threading.Thread(target=server.run, name="quantos-product", daemon=True)
     worker.start()
-    url = f"http://{host}:{selected}"
+    client_host = "127.0.0.1" if host == "0.0.0.0" else host
+    url = f"http://{client_host}:{selected}"
     try:
         wait_for_health(f"{url}/v1/health", timeout=health_timeout)
     except BaseException:
@@ -173,6 +181,7 @@ def launch_product(
         raise
     print(f"QuantOS Workspace  {url}")
     print(f"Runtime mode       {runtime_mode}")
+    print(f"Deployment mode    {deployment_mode.value}")
     if open_browser:
         webbrowser.open(url)
     try:

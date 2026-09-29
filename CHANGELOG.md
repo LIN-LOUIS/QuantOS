@@ -2,9 +2,24 @@
 
 All notable public-backend changes will be documented here.
 
+## Unreleased — Public Preview candidate
+
+- Added the synthetic-only, single-instance Public Preview container.
+- Added request size, concurrency, timeout, and Ask rate boundaries.
+- Added bounded ephemeral AskTrace retention without user identity collection.
+- Added Chinese/English Preview onboarding and truthful capability explanations.
+- Added safe Preview build, start, stop, status, and log operator commands.
+- Added deterministic clean-room acceptance and content-only public export.
+- Expanded CI with frontend and containerized Public Preview release gates.
+
+The released version remains `v0.3.1`. No Preview tag, GitHub Release, public
+HTTPS deployment, authentication, billing, real Provider connectivity, or
+trading capability is included by this synchronization branch.
+
 ## Unreleased — 0.1.0 public backend candidate
 
-No public release or tag has been created.
+Historical note: this section described the original pre-release 0.1.0
+candidate before the later `v0.3.0` and `v0.3.1` public releases.
 
 ### Included
 

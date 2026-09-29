@@ -369,11 +369,24 @@ def _run_start(args: argparse.Namespace) -> int:
         ProductStartError, git_commit, launch_product, local_data_notice,
         prepare_demo_workspace, resolve_workspace_assets,
     )
+    from quantos.api.protection import DeploymentMode
 
     project_root = Path(args.project_root).resolve()
     source_root = Path(__file__).resolve().parents[2]
     product_commit = git_commit(project_root)
     try:
+        deployment_mode = (
+            DeploymentMode.PUBLIC_PREVIEW
+            if args.public_preview else DeploymentMode.LOCAL
+        )
+        if args.host == "0.0.0.0" and deployment_mode is not DeploymentMode.PUBLIC_PREVIEW:
+            raise ProductStartError(
+                "PUBLIC_PREVIEW_REQUIRED: external binding requires --public-preview"
+            )
+        if deployment_mode is DeploymentMode.PUBLIC_PREVIEW and not args.demo:
+            raise ProductStartError(
+                "PUBLIC_PREVIEW_REQUIRES_DEMO: public preview only serves synthetic fixtures"
+            )
         try:
             workspace = resolve_workspace_assets(project_root)
         except ProductStartError:
@@ -389,6 +402,7 @@ def _run_start(args: argparse.Namespace) -> int:
                     port=port, port_explicit=args.port is not None,
                     runtime_mode="DEMO", open_browser=not args.no_browser,
                     build_commit=product_commit,
+                    deployment_mode=deployment_mode,
                 )
         settings = Settings.from_project_root(project_root)
         notice = local_data_notice(settings)
@@ -399,6 +413,7 @@ def _run_start(args: argparse.Namespace) -> int:
             port=port, port_explicit=args.port is not None,
             runtime_mode="LOCAL", open_browser=not args.no_browser,
             build_commit=product_commit,
+            deployment_mode=deployment_mode,
         )
     except ProductStartError as error:
         print(f"QuantOS start failed: {error}", file=sys.stderr)
@@ -578,12 +593,16 @@ def _parser() -> argparse.ArgumentParser:
     )
     start.add_argument("--project-root", type=Path, default=Path.cwd())
     start.add_argument(
-        "--host", choices=("127.0.0.1", "localhost", "::1"),
+        "--host", choices=("127.0.0.1", "localhost", "::1", "0.0.0.0"),
         default="127.0.0.1",
     )
     start.add_argument("--port", type=_port_number)
     start.add_argument("--no-browser", action="store_true")
     start.add_argument("--demo", action="store_true")
+    start.add_argument(
+        "--public-preview", action="store_true",
+        help="enable the hardened, Demo-only public preview boundary",
+    )
 
     data = subparsers.add_parser(
         "data", help="bootstrap or refresh persistent real-data foundations"

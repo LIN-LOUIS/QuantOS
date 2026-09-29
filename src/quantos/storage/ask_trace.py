@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import threading
+from datetime import datetime, timedelta
+from typing import Callable
 
 from quantos.ask.contracts import AskTrace
 from quantos.config import DEFAULT_SETTINGS, Settings
@@ -112,3 +115,62 @@ class AskTraceRepository:
         if not self.root.exists():
             return ()
         return tuple(self.read(path) for path in sorted(self.root.glob("created_date=*/*.json")))
+
+
+class BoundedAskTraceRepository(AskTraceRepository):
+    """AskTrace storage with count and age retention for an ephemeral preview."""
+
+    def __init__(
+        self, root: Path | None = None, *, settings: Settings = DEFAULT_SETTINGS,
+        max_records: int = 200, ttl: timedelta = timedelta(hours=1),
+        clock: Callable[[], datetime],
+    ) -> None:
+        super().__init__(root, settings=settings)
+        if type(max_records) is not int or max_records <= 0:
+            raise ValueError("trace max_records must be positive")
+        if ttl.total_seconds() <= 0:
+            raise ValueError("trace ttl must be positive")
+        self.max_records = max_records
+        self.ttl = ttl
+        self.clock = clock
+        self._retention_lock = threading.RLock()
+
+    def save_record(self, record: dict[str, object]) -> Path:
+        with self._retention_lock:
+            target = super().save_record(record)
+            self._prune()
+            return target
+
+    def load(self, trace_id: str) -> AskTrace:
+        with self._retention_lock:
+            self._prune()
+            return super().load(trace_id)
+
+    def recent(self, *, limit: int = 20) -> tuple[AskTrace, ...]:
+        with self._retention_lock:
+            self._prune()
+            return super().recent(limit=limit)
+
+    def _prune(self) -> None:
+        if not self.root.exists():
+            return
+        cutoff = self.clock() - self.ttl
+        retained: list[tuple[AskTrace, Path]] = []
+        for path in sorted(self.root.glob("created_date=*/*.json")):
+            try:
+                trace = self.read(path)
+            except AskTraceStorageError:
+                path.unlink(missing_ok=True)
+                continue
+            if trace.created_at < cutoff:
+                path.unlink(missing_ok=True)
+            else:
+                retained.append((trace, path))
+        retained.sort(key=lambda item: (item[0].created_at, item[0].trace_id), reverse=True)
+        for _trace, path in retained[self.max_records:]:
+            path.unlink(missing_ok=True)
+        for directory in self.root.glob("created_date=*"):
+            try:
+                directory.rmdir()
+            except OSError:
+                pass

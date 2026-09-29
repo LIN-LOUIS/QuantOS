@@ -8,6 +8,7 @@ export type IdentitySemantics = "OBSERVED_KNOWLEDGE" | "RETROSPECTIVE_EFFECTIVE_
 export interface HealthResponse {
   status: "ok"; service: string; api_version: "v1";
   runtime_mode: "LOCAL" | "DEMO";
+  deployment_mode: "local" | "public_preview";
   data_label: "LOCAL_PERSISTED_DATA" | "SYNTHETIC_FIXTURE";
   quantos_version: string; build_commit: string;
 }

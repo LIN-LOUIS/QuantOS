@@ -1,7 +1,9 @@
 """Local append-only storage and Point-in-Time queries."""
 
 from .time_slice import TimeSliceRepository
-from .ask_trace import AskTraceRepository, AskTraceStorageError
+from .ask_trace import (
+    AskTraceRepository, AskTraceStorageError, BoundedAskTraceRepository,
+)
 from .security_master import (
     SecurityMasterRepository, SecurityMasterStorageError,
     SecurityMasterUnavailableError, SecuritySnapshotWriteResult,
@@ -38,6 +40,7 @@ __all__ = [
     "TimeSliceRepository",
     "AskTraceRepository",
     "AskTraceStorageError",
+    "BoundedAskTraceRepository",
     "SecurityMasterRepository",
     "SecurityMasterStorageError",
     "SecurityMasterUnavailableError",
