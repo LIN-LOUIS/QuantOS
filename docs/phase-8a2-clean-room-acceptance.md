@@ -46,10 +46,17 @@ The command:
 9. checks the runtime UID is non-root and verifies `runtime_mode=DEMO` and
    `deployment_mode=public_preview`;
 10. removes the acceptance container in a `finally` cleanup path;
-11. creates a fresh public-export staging tree and deterministic manifest.
+11. computes the canonical public payload digest, excluding only the three
+    declared attestation files;
+12. writes the candidate acceptance manifest and then reruns the secret,
+    runtime-artifact, exact-surface, provenance, and payload-digest checks.
 
-No private Git SHA is written to the public export. The release snapshot ID is
-a content digest of the intended public file surface. The historical policy is
+No private Git SHA is written to the public export. The public payload snapshot
+ID is a content digest of the intended public payload. It excludes only
+`PUBLIC_EXPORT_ACCEPTANCE.json`, `PUBLIC_EXPORT_METADATA.json`, and
+`PUBLIC_SOURCE_ACCEPTANCE.json`; these files attest to the payload and are
+covered by the complete public Git commit instead of recursively hashing
+themselves. The historical policy is
 `content-only-export-preserve-public-history-no-private-ancestry`.
 
 ## PASS / FAIL
@@ -75,10 +82,13 @@ For `--output /tmp/quantos-phase-8a2-acceptance`:
   `/tmp/quantos-phase-8a2-acceptance/acceptance-result.json`;
 - gate logs: `/tmp/quantos-phase-8a2-acceptance/logs`.
 
-The manifest schema `quantos-clean-room-acceptance-v1` contains project
-version, deterministic release snapshot ID, public parent when available,
-Python/frontend pass counts, every gate result, and the public-history policy.
-It intentionally has no volatile timestamp or private repository commit.
+`PUBLIC_SOURCE_ACCEPTANCE.json` retains the independently accepted source
+evidence under schema `quantos-clean-room-acceptance-v1`.
+`PUBLIC_EXPORT_ACCEPTANCE.json` uses schema
+`quantos-clean-room-acceptance-v2` and records both the accepted source ID and
+the independently recomputed public payload ID, plus current public-candidate
+test counts and gate results. It intentionally has no volatile timestamp or
+private repository commit.
 
 ## Troubleshooting
 
@@ -94,5 +104,7 @@ It intentionally has no volatile timestamp or private repository commit.
 | `CONTAINER_HEALTH` | server did not become healthy | Inspect container startup and `/v1/health`. |
 | `E2E_DEMO` | product surface regression | Repair the existing synthetic Demo or API boundary. |
 | `EXPORT_DIFF` | staging differs from allowlist | Review the intended public surface; fail closed. |
+| `PAYLOAD_DIGEST` | final payload differs from the recorded digest | Restore the canonical payload or regenerate all candidate attestations. |
+| `PROVENANCE` / `ATTESTATION` | source and candidate identities are missing, conflated, or stale | Keep source evidence separate and regenerate the candidate manifest. |
 
 Publication remains a later Phase 8A.2.1 controlled public-sync operation.

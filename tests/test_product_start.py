@@ -205,6 +205,15 @@ def test_public_snapshot_identity_is_visible_without_private_git_metadata(tmp_pa
     assert git_commit(tmp_path) == snapshot
 
 
+def test_public_payload_identity_is_visible_without_git_metadata(tmp_path):
+    snapshot = "public-payload-sha256:" + "c" * 64
+    (tmp_path / "release-manifest.json").write_text(json.dumps({
+        "git_commit": snapshot,
+    }), encoding="utf-8")
+
+    assert git_commit(tmp_path) == snapshot
+
+
 def test_local_runtime_metadata_does_not_claim_demo_data(tmp_path):
     client = TestClient(create_app(
         settings=prepare_demo_workspace(tmp_path),

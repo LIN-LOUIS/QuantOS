@@ -17,8 +17,13 @@ from typing import Iterable, Sequence
 from quantos._compat import tomllib
 
 
-MANIFEST_SCHEMA = "quantos-clean-room-acceptance-v1"
+MANIFEST_SCHEMA = "quantos-clean-room-acceptance-v2"
 HISTORY_POLICY = "content-only-export-preserve-public-history-no-private-ancestry"
+ATTESTATION_FILES = (
+    "PUBLIC_EXPORT_ACCEPTANCE.json",
+    "PUBLIC_EXPORT_METADATA.json",
+    "PUBLIC_SOURCE_ACCEPTANCE.json",
+)
 REQUIRED_FILES = (
     ".dockerignore", "Dockerfile", "LICENSE", "README.md", "pyproject.toml",
     "web/package.json", "web/package-lock.json", "src/quantos/__init__.py",
@@ -68,7 +73,8 @@ class Gate:
 class AcceptanceManifest:
     schema_version: str
     project_version: str
-    release_snapshot_id: str
+    accepted_source_snapshot_id: str
+    public_payload_snapshot_id: str
     public_parent_identifier: str | None
     acceptance_result: str
     python_test_count: int
@@ -174,13 +180,23 @@ def stage_public_export(source: Path, destination: Path, allowlist: Path) -> tup
     return entries
 
 
-def snapshot_identifier(root: Path) -> str:
+def public_payload_snapshot_identifier(root: Path) -> str:
+    """Hash the canonical public payload, excluding generated attestations."""
+
     digest = hashlib.sha256()
     for path in sorted(value for value in root.rglob("*") if value.is_file()):
         relative = path.relative_to(root).as_posix()
+        if relative in ATTESTATION_FILES:
+            continue
         digest.update(relative.encode("utf-8") + b"\0")
         digest.update(hashlib.sha256(path.read_bytes()).digest())
-    return "public-snapshot-sha256:" + digest.hexdigest()
+    return "public-payload-sha256:" + digest.hexdigest()
+
+
+def snapshot_identifier(root: Path) -> str:
+    """Compatibility alias for the canonical public payload identifier."""
+
+    return public_payload_snapshot_identifier(root)
 
 
 def project_version(root: Path) -> str:
@@ -216,15 +232,28 @@ def public_parent(root: Path) -> str | None:
     return str(value) if value else None
 
 
+def accepted_source_snapshot(root: Path) -> str:
+    payload = json.loads((root / "PUBLIC_EXPORT_METADATA.json").read_text("utf-8"))
+    value = payload.get("accepted_source_snapshot_id")
+    if not isinstance(value, str) or not value:
+        raise AcceptanceError(
+            "PROVENANCE", "accepted source snapshot ID is missing",
+            "Record the independently accepted source snapshot in public metadata.",
+        )
+    return value
+
+
 def make_manifest(
-    *, root: Path, snapshot_id: str, python_tests: int, frontend_tests: int,
+    *, root: Path, public_payload_snapshot_id: str,
+    python_tests: int, frontend_tests: int,
     gates: Sequence[Gate],
 ) -> AcceptanceManifest:
     result = "PASS" if gates and all(gate.status == "PASS" for gate in gates) else "FAIL"
     return AcceptanceManifest(
         schema_version=MANIFEST_SCHEMA,
         project_version=project_version(root),
-        release_snapshot_id=snapshot_id,
+        accepted_source_snapshot_id=accepted_source_snapshot(root),
+        public_payload_snapshot_id=public_payload_snapshot_id,
         public_parent_identifier=public_parent(root),
         acceptance_result=result,
         python_test_count=python_tests,
@@ -233,6 +262,97 @@ def make_manifest(
         history_policy=HISTORY_POLICY,
         gates=tuple(gates),
     )
+
+
+def validate_payload_attestation(root: Path, expected_payload_id: str) -> None:
+    """Validate source provenance and the generated candidate attestation."""
+
+    metadata = json.loads((root / "PUBLIC_EXPORT_METADATA.json").read_text("utf-8"))
+    source_id = metadata.get("accepted_source_snapshot_id")
+    candidate_id = metadata.get("public_payload_snapshot_id")
+    if not isinstance(source_id, str) or not source_id:
+        raise AcceptanceError(
+            "PROVENANCE", "accepted source snapshot ID is missing",
+            "Record the accepted source snapshot separately from the public payload.",
+        )
+    if source_id == candidate_id:
+        raise AcceptanceError(
+            "PROVENANCE", "source and public payload snapshot IDs are conflated",
+            "Record independent source-acceptance and public-payload identities.",
+        )
+    if candidate_id != expected_payload_id:
+        raise AcceptanceError(
+            "PROVENANCE", "metadata public payload snapshot ID differs",
+            "Recompute the public payload digest and update candidate metadata.",
+        )
+    source_evidence = json.loads(
+        (root / "PUBLIC_SOURCE_ACCEPTANCE.json").read_text(encoding="utf-8")
+    )
+    if (
+        source_evidence.get("schema_version") != "quantos-clean-room-acceptance-v1"
+        or source_evidence.get("release_snapshot_id") != source_id
+    ):
+        raise AcceptanceError(
+            "PROVENANCE", "source acceptance evidence differs from metadata",
+            "Restore the independently accepted source evidence and identity.",
+        )
+    manifest_path = root / "PUBLIC_EXPORT_ACCEPTANCE.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") != MANIFEST_SCHEMA:
+        raise AcceptanceError(
+            "ATTESTATION", "candidate acceptance schema differs",
+            "Regenerate the candidate acceptance manifest with the current schema.",
+        )
+    if manifest.get("public_payload_snapshot_id") != expected_payload_id:
+        raise AcceptanceError(
+            "ATTESTATION", "manifest public payload snapshot ID differs",
+            "Regenerate the candidate acceptance manifest from the final payload.",
+        )
+    if manifest.get("accepted_source_snapshot_id") != source_id:
+        raise AcceptanceError(
+            "ATTESTATION", "manifest source acceptance identity differs",
+            "Regenerate the manifest without changing source provenance.",
+        )
+    for field in ("python_test_count", "frontend_test_count", "clean_room"):
+        if metadata.get(field) != manifest.get(field):
+            raise AcceptanceError(
+                "ATTESTATION", f"metadata and candidate manifest differ for {field}",
+                "Update candidate metadata only from the accepted candidate manifest.",
+            )
+
+
+def validate_final_export(
+    root: Path, expected_entries: Sequence[str], expected_payload_id: str,
+) -> None:
+    """Fail closed on the final post-attestation export surface."""
+
+    actual = tuple(sorted(
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*") if path.is_file()
+    ))
+    if actual != tuple(sorted(expected_entries)):
+        raise AcceptanceError(
+            "EXPORT_DIFF", "final export differs from the exact allowlist",
+            "Restore the allowlisted surface and regenerate the attestation.",
+        )
+    secrets = secret_candidates(root)
+    if secrets:
+        raise AcceptanceError(
+            "SECRET_SCAN", f"credential-like values found in {len(secrets)} file(s)",
+            "Remove real credentials and regenerate the export.",
+        )
+    runtime = runtime_artifact_candidates(root)
+    if runtime:
+        raise AcceptanceError(
+            "RUNTIME_ARTIFACT_SCAN", f"forbidden runtime paths found: {len(runtime)}",
+            "Remove runtime data and regenerate the export.",
+        )
+    if public_payload_snapshot_identifier(root) != expected_payload_id:
+        raise AcceptanceError(
+            "PAYLOAD_DIGEST", "final public payload digest differs",
+            "Regenerate from the unchanged canonical payload.",
+        )
+    validate_payload_attestation(root, expected_payload_id)
 
 
 def require_pass(manifest: AcceptanceManifest) -> None:

@@ -8,6 +8,7 @@ import subprocess
 
 import pytest
 
+import quantos.clean_room as clean_room
 from quantos.clean_room import (
     AcceptanceError, Gate, create_tracked_snapshot, make_manifest, require_pass,
     parse_frontend_count, run_checked, runtime_artifact_candidates, secret_candidates, snapshot_identifier,
@@ -21,6 +22,15 @@ def _release_tree(root: Path) -> None:
         "pyproject.toml": '[project]\nname="quantos"\nversion="0.3.1"\n',
         "PUBLIC_EXPORT_METADATA.json": json.dumps({
             "project_version": "0.3.1", "public_parent_commit": "public-parent",
+            "accepted_source_snapshot_id": "public-snapshot-sha256:source",
+            "public_payload_snapshot_id": "public-payload-sha256:candidate",
+        }),
+        "PUBLIC_SOURCE_ACCEPTANCE.json": json.dumps({
+            "schema_version": "quantos-clean-room-acceptance-v1",
+            "release_snapshot_id": "public-snapshot-sha256:source",
+        }),
+        "PUBLIC_EXPORT_ACCEPTANCE.json": json.dumps({
+            "schema_version": "quantos-clean-room-acceptance-v2",
         }),
         "README.md": "# QuantOS\n", "LICENSE": "Apache-2.0\n",
         ".dockerignore": "data\n", "Dockerfile": "FROM scratch\n",
@@ -127,22 +137,32 @@ def test_public_export_preserves_operator_executable_mode(tmp_path):
     assert (destination / "scripts/preview-up.sh").stat().st_mode & 0o111
 
 
+def _set_candidate_payload(root: Path, payload_id: str) -> None:
+    path = root / "PUBLIC_EXPORT_METADATA.json"
+    metadata = json.loads(path.read_text(encoding="utf-8"))
+    metadata["public_payload_snapshot_id"] = payload_id
+    metadata["python_test_count"] = 1609
+    metadata["frontend_test_count"] = 30
+    metadata["clean_room"] = "PASS"
+    path.write_text(json.dumps(metadata), encoding="utf-8")
+
+
 def test_manifest_is_deterministic_and_pass_requires_every_gate(tmp_path):
     _release_tree(tmp_path)
     gates = (Gate("source", "PASS"), Gate("docker", "PASS"))
     first = make_manifest(
-        root=tmp_path, snapshot_id="public-snapshot-sha256:abc",
+        root=tmp_path, public_payload_snapshot_id="public-payload-sha256:abc",
         python_tests=1600, frontend_tests=30, gates=gates,
     )
     second = make_manifest(
-        root=tmp_path, snapshot_id="public-snapshot-sha256:abc",
+        root=tmp_path, public_payload_snapshot_id="public-payload-sha256:abc",
         python_tests=1600, frontend_tests=30, gates=gates,
     )
     assert first.to_bytes() == second.to_bytes()
     require_pass(first)
 
     failed = make_manifest(
-        root=tmp_path, snapshot_id="public-snapshot-sha256:abc",
+        root=tmp_path, public_payload_snapshot_id="public-payload-sha256:abc",
         python_tests=1600, frontend_tests=30,
         gates=(Gate("source", "PASS"), Gate("health", "FAIL")),
     )
@@ -177,3 +197,88 @@ def test_container_inventory_rejects_runtime_data_and_credential_keys():
         validate_container_inventory(
             ("/app/data/market.parquet",), ("TUSHARE_TOKEN=redacted",),
         )
+
+
+def test_public_payload_digest_changes_when_payload_changes(tmp_path):
+    (tmp_path / "README.md").write_text("first\n", encoding="utf-8")
+    first = clean_room.public_payload_snapshot_identifier(tmp_path)
+
+    (tmp_path / "README.md").write_text("second\n", encoding="utf-8")
+
+    assert clean_room.public_payload_snapshot_identifier(tmp_path) != first
+
+
+def test_public_payload_digest_explicitly_excludes_attestations(tmp_path):
+    (tmp_path / "README.md").write_text("payload\n", encoding="utf-8")
+    for name in clean_room.ATTESTATION_FILES:
+        (tmp_path / name).write_text("first attestation\n", encoding="utf-8")
+    first = clean_room.public_payload_snapshot_identifier(tmp_path)
+
+    for name in clean_room.ATTESTATION_FILES:
+        (tmp_path / name).write_text("changed attestation\n", encoding="utf-8")
+
+    assert clean_room.public_payload_snapshot_identifier(tmp_path) == first
+
+
+def test_manifest_payload_id_matches_independent_recomputation(tmp_path):
+    _release_tree(tmp_path)
+    (tmp_path / "README.md").write_text("candidate payload\n", encoding="utf-8")
+    payload_id = clean_room.public_payload_snapshot_identifier(tmp_path)
+    _set_candidate_payload(tmp_path, payload_id)
+    manifest = clean_room.make_manifest(
+        root=tmp_path, public_payload_snapshot_id=payload_id,
+        python_tests=1609, frontend_tests=30,
+        gates=(Gate("source", "PASS"),),
+    )
+    (tmp_path / "PUBLIC_EXPORT_ACCEPTANCE.json").write_bytes(manifest.to_bytes())
+
+    clean_room.validate_payload_attestation(tmp_path, payload_id)
+    assert manifest.public_payload_snapshot_id == payload_id
+
+
+def test_final_export_validation_runs_after_manifest_generation(tmp_path):
+    _release_tree(tmp_path)
+    allowlist = tmp_path / "public_export_manifest.txt"
+    entries = tuple(sorted(
+        path.relative_to(tmp_path).as_posix()
+        for path in tmp_path.rglob("*") if path.is_file()
+    ))
+    allowlist.write_text("\n".join(entries) + "\n", encoding="utf-8")
+    entries = tuple(sorted(set(entries) | {"public_export_manifest.txt"}))
+    payload_id = clean_room.public_payload_snapshot_identifier(tmp_path)
+    _set_candidate_payload(tmp_path, payload_id)
+    manifest = clean_room.make_manifest(
+        root=tmp_path, public_payload_snapshot_id=payload_id,
+        python_tests=1609, frontend_tests=30,
+        gates=(Gate("source", "PASS"),),
+    )
+    (tmp_path / "PUBLIC_EXPORT_ACCEPTANCE.json").write_bytes(manifest.to_bytes())
+
+    clean_room.validate_final_export(tmp_path, entries, payload_id)
+
+
+def test_source_and_candidate_snapshot_ids_cannot_be_conflated(tmp_path):
+    _release_tree(tmp_path)
+    payload_id = clean_room.public_payload_snapshot_identifier(tmp_path)
+    metadata = json.loads(
+        (tmp_path / "PUBLIC_EXPORT_METADATA.json").read_text(encoding="utf-8")
+    )
+    metadata["accepted_source_snapshot_id"] = payload_id
+    metadata["public_payload_snapshot_id"] = payload_id
+    (tmp_path / "PUBLIC_EXPORT_METADATA.json").write_text(
+        json.dumps(metadata), encoding="utf-8"
+    )
+
+    with pytest.raises(AcceptanceError, match="PROVENANCE"):
+        clean_room.validate_payload_attestation(tmp_path, payload_id)
+
+
+def test_missing_source_snapshot_id_fails_with_actionable_acceptance_error(tmp_path):
+    _release_tree(tmp_path)
+    metadata_path = tmp_path / "PUBLIC_EXPORT_METADATA.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata.pop("accepted_source_snapshot_id")
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    with pytest.raises(AcceptanceError, match="accepted source snapshot ID is missing"):
+        clean_room.accepted_source_snapshot(tmp_path)

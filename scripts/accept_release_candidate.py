@@ -16,9 +16,10 @@ sys.path.insert(0, str(SOURCE_ROOT / "src"))
 
 from quantos.clean_room import (
     AcceptanceError, Gate, create_tracked_snapshot, docker_smoke, make_manifest,
-    parse_frontend_count, parse_pytest_count, require_pass, runtime_artifact_candidates,
-    secret_candidates, snapshot_identifier, stage_public_export,
-    validate_required_files, validate_version_consistency, run_checked,
+    parse_frontend_count, parse_pytest_count, public_payload_snapshot_identifier,
+    require_pass, runtime_artifact_candidates, secret_candidates, stage_public_export,
+    validate_final_export, validate_required_files, validate_version_consistency,
+    run_checked,
 )
 
 
@@ -72,7 +73,7 @@ def accept(
     entries = stage_public_export(source, verification, allowlist)
     _security_gate(verification)
     version = validate_version_consistency(verification)
-    snapshot_id = snapshot_identifier(verification)
+    payload_id = public_payload_snapshot_identifier(verification)
     gates = [
         Gate("tracked_source", "PASS", "git archive HEAD"),
         Gate("required_files", "PASS", f"{len(entries)} allowlisted files"),
@@ -143,10 +144,10 @@ def accept(
                   Gate("typecheck", "PASS"), Gate("frontend_build", "PASS"),
                   Gate("npm_audit", "PASS")))
 
-    image_suffix = snapshot_id.rsplit(":", 1)[-1][:12]
+    image_suffix = payload_id.rsplit(":", 1)[-1][:12]
     smoke = docker_smoke(
         source=verification, image=f"quantos-clean-room:{image_suffix}",
-        container=f"quantos-clean-room-{image_suffix}", snapshot_id=snapshot_id,
+        container=f"quantos-clean-room-{image_suffix}", snapshot_id=payload_id,
         no_cache=no_cache, logs=logs,
     )
     gates.extend((Gate("docker_build", "PASS"), Gate("container_health", "PASS"),
@@ -158,22 +159,24 @@ def accept(
 
     final_stage = output / "public-export"
     stage_public_export(source, final_stage, allowlist)
-    _security_gate(final_stage)
-    if snapshot_identifier(final_stage) != snapshot_id:
+    if public_payload_snapshot_identifier(final_stage) != payload_id:
         raise AcceptanceError("EXPORT_DIFF", "final export content changed after acceptance",
                               "Regenerate from the same tracked snapshot.")
     gates.append(Gate("final_export_scan", "PASS"))
     manifest = make_manifest(
-        root=final_stage, snapshot_id=snapshot_id, python_tests=python_count,
+        root=final_stage, public_payload_snapshot_id=payload_id,
+        python_tests=python_count,
         frontend_tests=frontend_count, gates=gates,
     )
     require_pass(manifest)
     manifest_path = final_stage / "PUBLIC_EXPORT_ACCEPTANCE.json"
     manifest_path.write_bytes(manifest.to_bytes())
+    validate_final_export(final_stage, entries, payload_id)
     (output / "acceptance-result.json").write_bytes(manifest.to_bytes())
     return {
         "status": "PASS", "staging_directory": str(final_stage),
-        "manifest_path": str(manifest_path), "release_snapshot_id": snapshot_id,
+        "manifest_path": str(manifest_path),
+        "public_payload_snapshot_id": payload_id,
         "python_test_count": python_count, "frontend_test_count": frontend_count,
         "private_sha_disclosed": False,
     }

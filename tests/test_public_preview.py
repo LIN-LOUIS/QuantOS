@@ -313,6 +313,7 @@ def test_container_contract_builds_assets_and_runs_non_root():
     assert "npm ci" in dockerfile and "npm run build" in dockerfile
     assert "COPY --from=frontend" in dockerfile
     assert "USER quantos" in dockerfile
+    assert "QUANTOS_BUILD_COMMIT=${QUANTOS_BUILD_COMMIT}" in dockerfile
     assert "--public-preview" in dockerfile and "--demo" in dockerfile
     assert "HEALTHCHECK" in dockerfile and "/v1/health" in dockerfile
     for forbidden in (".env", "data", "*.parquet", "*.duckdb", "node_modules"):

@@ -18,7 +18,8 @@ trading capability is included by this synchronization branch.
 
 ## Unreleased — 0.1.0 public backend candidate
 
-No public release or tag has been created.
+Historical note: this section described the original pre-release 0.1.0
+candidate before the later `v0.3.0` and `v0.3.1` public releases.
 
 ### Included
 

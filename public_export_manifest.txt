@@ -1,5 +1,6 @@
-# QuantOS public export manifest v2
-# Audited v0.3.1 maintenance snapshot on preserved public history.
+# QuantOS public export manifest v3
+# Exact allowlisted surface for the unreleased Public Preview candidate.
+# Acceptance and metadata files are attestations, not payload-digest inputs.
 
 .dockerignore
 .github/workflows/tests.yml
@@ -10,6 +11,7 @@ Dockerfile
 LICENSE
 PUBLIC_EXPORT_ACCEPTANCE.json
 PUBLIC_EXPORT_METADATA.json
+PUBLIC_SOURCE_ACCEPTANCE.json
 PUBLIC_LICENSE_DECISION.md
 PUBLIC_REPOSITORY_METADATA.md
 README.en.md

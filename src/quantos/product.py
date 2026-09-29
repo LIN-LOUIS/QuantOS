@@ -138,7 +138,7 @@ def git_commit(project_root: Path) -> str:
             ).get("git_commit")
             if isinstance(value, str) and (
                 re.fullmatch(r"[0-9a-f]{40}", value)
-                or re.fullmatch(r"public-snapshot-sha256:[0-9a-f]{64}", value)
+                or re.fullmatch(r"public-(?:snapshot|payload)-sha256:[0-9a-f]{64}", value)
             ):
                 return value
         except (OSError, ValueError, TypeError):

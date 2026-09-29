@@ -48,7 +48,7 @@ An exported source snapshot has no private `.git` directory. In that case the
 build identity must be supplied explicitly:
 
 ```bash
-QUANTOS_BUILD_COMMIT="public-snapshot-sha256:<digest>" scripts/preview-build.sh
+QUANTOS_BUILD_COMMIT="public-payload-sha256:<digest>" scripts/preview-build.sh
 ```
 
 The default host binding is `127.0.0.1:8080`. `preview-up.sh` waits for
